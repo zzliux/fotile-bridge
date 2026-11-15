@@ -209,15 +209,6 @@
   },
   "controls": [
     {
-      "type": "number",
-      "name": "预约时间(分钟)",
-      "field": "SetAppointmentTime",
-      "min": 0,
-      "max": 1440,
-      "unit": "min",
-      "icon": "mdi:clock-outline"
-    },
-    {
       "type": "switch",
       "name": "蒸汽清洁",
       "field": "GSCPowerSwitch",
