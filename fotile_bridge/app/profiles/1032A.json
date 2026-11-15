@@ -48,7 +48,8 @@
       "name": "预约时间",
       "unit": "min",
       "device_class": "duration",
-      "icon": "mdi:clock-outline"
+      "icon": "mdi:clock-outline",
+      "enabled": false
     },
     "SoftensaltLevel": {
       "name": "软水盐档位",
@@ -83,19 +84,22 @@
       "name": "剩余时间",
       "unit": "min",
       "device_class": "duration",
-      "icon": "mdi:timer-sand"
+      "icon": "mdi:timer-sand",
+      "decode": "hhmm"
     },
     "StRemTime": {
-      "name": "剩余总时间",
+      "name": "剩余总时间(原始值)",
       "unit": "min",
       "device_class": "duration",
-      "icon": "mdi:timer-outline"
+      "icon": "mdi:timer-outline",
+      "enabled": false
     },
     "SetWorkTime": {
       "name": "设定工作时间",
       "unit": "min",
       "device_class": "duration",
-      "icon": "mdi:clock-digital"
+      "icon": "mdi:clock-digital",
+      "decode": "hhmm"
     },
     "GSCPowerSwitch": {
       "name": "蒸汽清洁电源",

@@ -174,6 +174,13 @@ class Discovery:
 
     @staticmethod
     def _template(field: Field) -> str:
+        if field.decode == "hhmm":
+            v = f"value_json.{field.key}"
+            return (
+                "{{ ((" + v + " // 256) * 60 + (" + v + " % 256))"
+                " if ((" + v + " % 256) < 60 and (" + v + " // 256) < 24)"
+                " else " + v + " }}"
+            )
         if field.options:
             mapping = ", ".join(f"'{k}': '{v}'" for k, v in field.options.items())
             return (

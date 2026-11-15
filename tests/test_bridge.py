@@ -159,3 +159,12 @@ def test_program_select_raw_string():
         payload="超快洗".encode(),
     ))
     assert bridge._programs["1149539722"] == "超快洗"
+
+
+def test_hhmm_decode_template():
+    from app.discovery import Discovery
+    from app.profile import Field
+    d = Discovery(lambda *a: None)
+    t = d._template(Field(key="ClRemTime", decode="hhmm"))
+    assert "value_json.ClRemTime // 256" in t
+    assert "// 256) * 60" in t

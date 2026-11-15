@@ -16,6 +16,7 @@ class Field:
     icon: str = ""
     entity: str = "sensor"  # sensor | binary_sensor
     options: Dict[str, str] = field(default_factory=dict)  # 原始值 -> 可读文案
+    decode: str = ""  # hhmm = 小时*256+分钟
     enabled: bool = True
 
     @classmethod
@@ -28,6 +29,7 @@ class Field:
             icon=data.get("icon", ""),
             entity=data.get("entity", "sensor"),
             options={str(k): str(v) for k, v in (data.get("values") or {}).items()},
+            decode=data.get("decode", ""),
             enabled=bool(data.get("enabled", True)),
         )
 
