@@ -236,11 +236,11 @@
     },
     "pause": {
       "button": {
-        "name": "暂停"
+        "name": "暂停(实验)"
       },
       "sequence": [
         {
-          "WorkState": 0
+          "WorkState": 3
         }
       ]
     },
