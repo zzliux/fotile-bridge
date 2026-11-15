@@ -136,14 +136,19 @@ class MqttBridge:
 
         if profile is not None and "start_program" in payload:
             name = self._programs.get(device_id, "")
-            mode = (profile.programs or {}).get(name)
-            if mode is None:
+            spec = (profile.programs or {}).get(name)
+            if not spec:
                 LOG.warning("unknown program %s for %s", name, device_id)
                 return
-            body = {"WorkMode": mode, "WorkState": 1, "AddFunL": 1,
-                    "StoreTotalTime": 10, "PowerSwitchAll": 1}
+            body = {
+                "WorkMode": int(spec.get("WorkMode", 0)),
+                "WorkState": 1,
+                "AddFunL": int(spec.get("AddFunL", 1)),
+                "StoreTotalTime": int(self._state.get((profile.product_id, device_id), {}).get("StoreTotalTime", 10)) if spec.get("store") else 0,
+                "PowerSwitchAll": 1,
+            }
             self.publish(control_topic, json.dumps(body), False)
-            LOG.info("start selected program %s (WorkMode=%s)", name, mode)
+            LOG.info("start selected program %s (WorkMode=%s)", name, body["WorkMode"])
             return
 
         # 语义化命令：动态值直接写进 TSL 字段

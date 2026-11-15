@@ -297,7 +297,7 @@
       "name": "工作模式(原始值)",
       "field": "WorkMode",
       "min": 0,
-      "max": 10,
+      "max": 200,
       "icon": "mdi:dishwasher"
     },
     {
@@ -327,6 +327,76 @@
     }
   ],
   "programs": {
-    "日常洗": 0
+    "日常洗": {
+      "WorkMode": 0,
+      "AddFunL": 1,
+      "store": true
+    },
+    "超快洗": {
+      "WorkMode": 1,
+      "AddFunL": 0,
+      "store": false
+    },
+    "超净洗": {
+      "WorkMode": 2,
+      "AddFunL": 1,
+      "store": true
+    },
+    "晶亮洗": {
+      "WorkMode": 3,
+      "AddFunL": 1,
+      "store": true
+    },
+    "自清洁": {
+      "WorkMode": 4,
+      "AddFunL": 0,
+      "store": false
+    },
+    "节能洗": {
+      "WorkMode": 5,
+      "AddFunL": 1,
+      "store": true
+    },
+    "智能洗": {
+      "WorkMode": 6,
+      "AddFunL": 1,
+      "store": true
+    },
+    "预冲洗": {
+      "WorkMode": 128,
+      "AddFunL": 0,
+      "store": false
+    },
+    "母婴洗": {
+      "WorkMode": 129,
+      "AddFunL": 1,
+      "store": true
+    },
+    "静音洗": {
+      "WorkMode": 130,
+      "AddFunL": 1,
+      "store": true
+    },
+    "蒸汽消杀": {
+      "WorkMode": 132,
+      "AddFunL": 1,
+      "store": true
+    },
+    "独立烘干": {
+      "WorkMode": 133,
+      "AddFunL": 1,
+      "store": true
+    },
+    "谷电洗": {
+      "WorkMode": 135,
+      "AddFunL": 0,
+      "store": false,
+      "appointment": true
+    },
+    "餐前暖碟": {
+      "WorkMode": 136,
+      "AddFunL": 1,
+      "store": true
+    }
   }
 }

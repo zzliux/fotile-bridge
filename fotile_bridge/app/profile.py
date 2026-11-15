@@ -39,7 +39,7 @@ class Profile:
     fields: List[Field] = field(default_factory=list)
     commands: Dict[str, dict] = field(default_factory=dict)
     controls: List[dict] = field(default_factory=list)
-    programs: Dict[str, int] = field(default_factory=dict)
+    programs: Dict[str, dict] = field(default_factory=dict)
     # 设备上报里出现即视为 binary 的键（0/1）
     power_key: str = "PowerSwitchAll"
     model: str = ""
@@ -53,7 +53,8 @@ class Profile:
             fields=fields,
             commands=data.get("commands") or {},
             controls=data.get("controls") or [],
-            programs={str(k): int(v) for k, v in (data.get("programs") or {}).items()},
+            programs={str(k): (v if isinstance(v, dict) else {"WorkMode": int(v)})
+                      for k, v in (data.get("programs") or {}).items()},
             power_key=data.get("powerKey", "PowerSwitchAll"),
             model=data.get("model", ""),
         )
