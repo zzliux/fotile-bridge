@@ -64,9 +64,14 @@ class MqttSplitter:
         return out
 
 
-def publish_packet(topic: str, payload: bytes) -> bytes:
+def publish_packet(topic: str, payload: bytes, packet_id: int = 0) -> bytes:
     t = topic.encode()
-    body = struct.pack("!H", len(t)) + t + payload
+    if packet_id:
+        body = struct.pack("!H", len(t)) + t + struct.pack("!H", packet_id) + payload
+        first = 0x32  # PUBLISH QoS1
+    else:
+        body = struct.pack("!H", len(t)) + t + payload
+        first = 0x30  # PUBLISH QoS0
     rem = len(body)
     enc = b""
     while True:
@@ -75,7 +80,7 @@ def publish_packet(topic: str, payload: bytes) -> bytes:
         enc += bytes([d | (0x80 if rem else 0)])
         if not rem:
             break
-    return b"\x30" + enc + body
+    return bytes([first]) + enc + body
 
 
 class MqttRelay:
@@ -86,6 +91,11 @@ class MqttRelay:
         self.device_writer: Optional[asyncio.StreamWriter] = None
         self._lock = asyncio.Lock()
         self._active = 0
+        self._pid = 60000
+        self._pending_pids = set()
+        self._cloud_writer = None
+        self._cloud_creds = None
+        self._cloud_lock = asyncio.Lock()
 
     async def start(self) -> None:
         self.server = await asyncio.start_server(self._handle, "0.0.0.0", self.cfg.relay_port)
@@ -141,10 +151,12 @@ class MqttRelay:
                 data = await reader.read(65536)
                 if not data:
                     break
-                up_writer.write(data)
-                await up_writer.drain()
                 for pkt in splitter_dev.feed(data):
+                    if self._consume_puback(pkt):
+                        continue
                     self._tap_device(pkt)
+                    up_writer.write(pkt)
+                    await up_writer.drain()
 
         async def up_to_dev():
             while True:
@@ -153,8 +165,9 @@ class MqttRelay:
                     break
                 for pkt in splitter_up.feed(data):
                     self._tap_cloud(pkt)
-                    writer.write(pkt)
-                    await writer.drain()
+                    async with self._lock:
+                        writer.write(pkt)
+                        await writer.drain()
 
         try:
             await asyncio.gather(dev_to_up(), up_to_dev())
@@ -168,7 +181,46 @@ class MqttRelay:
                     pass
             LOG.info("relay connection closed")
 
+    def _parse_connect(self, pkt: bytes):
+        """从设备的 CONNECT 里取出云端账号密码，供控制发布使用。"""
+        if not pkt or pkt[0] >> 4 != 1:
+            return None
+        i = 1
+        while i < len(pkt) and pkt[i] & 0x80:
+            i += 1
+        i += 1
+        body = pkt[i:]
+        try:
+            pos = 0
+            plen = struct.unpack("!H", body[pos:pos + 2])[0]
+            pos += 2 + plen
+            flags = body[pos + 1]
+            pos += 4  # level + flags + keepalive
+            clen = struct.unpack("!H", body[pos:pos + 2])[0]
+            pos += 2 + clen
+            if flags & 0x04:  # will
+                wl = struct.unpack("!H", body[pos:pos + 2])[0]
+                pos += 2 + wl
+                ml = struct.unpack("!H", body[pos:pos + 2])[0]
+                pos += 2 + ml
+            user = None
+            pw = None
+            if flags & 0x80:
+                ul = struct.unpack("!H", body[pos:pos + 2])[0]
+                user = body[pos + 2:pos + 2 + ul]
+                pos += 2 + ul
+            if flags & 0x40:
+                pl = struct.unpack("!H", body[pos:pos + 2])[0]
+                pw = body[pos + 2:pos + 2 + pl]
+            return user, pw
+        except (struct.error, IndexError):
+            return None
+
     def _tap_device(self, pkt: bytes) -> None:
+        creds = self._parse_connect(pkt)
+        if creds and creds[0] and creds[1]:
+            self._cloud_creds = creds
+            LOG.info("captured device cloud credentials")
         topic, payload = self._parse_publish(pkt)
         if topic and topic.startswith("sync/") and payload:
             try:
@@ -206,15 +258,68 @@ class MqttRelay:
             rest = rest[2:]
         return topic, rest
 
-    async def inject(self, topic: str, payload: str) -> bool:
-        writer = self.device_writer
-        if writer is None:
-            LOG.warning("inject skipped: no device connection")
+    def _consume_puback(self, pkt: bytes) -> bool:
+        """吞掉设备对我们注入的 QoS1 报文的 PUBACK，避免流向云端。"""
+        if not pkt or pkt[0] >> 4 != 4:
             return False
-        async with self._lock:
-            writer.write(publish_packet(topic, payload.encode()))
+        i = 1
+        while i < len(pkt) and pkt[i] & 0x80:
+            i += 1
+        i += 1
+        if len(pkt) < i + 2:
+            return False
+        pid = struct.unpack("!H", pkt[i:i + 2])[0]
+        if pid in self._pending_pids:
+            self._pending_pids.discard(pid)
+            LOG.debug("consumed PUBACK for injected packet id=%s", pid)
+            return True
+        return False
+
+    async def _ensure_cloud(self):
+        if self._cloud_creds is None:
+            return None
+        async with self._cloud_lock:
+            if self._cloud_writer is not None:
+                return self._cloud_writer
+            user, pw = self._cloud_creds
+            reader, writer = await asyncio.wait_for(
+                asyncio.open_connection(self.cfg.relay_upstream, 1883), timeout=10
+            )
+            cid = b"fotile_ha_bridge"
+            vh = b"\x00\x06MQIsdp\x03" + bytes([0x02 | 0xC0]) + b"\x00\x3c"
+            body = vh + struct.pack("!H", len(cid)) + cid
+            body += struct.pack("!H", len(user)) + user
+            body += struct.pack("!H", len(pw)) + pw
+            rem = len(body)
+            enc = b""
+            while True:
+                d = rem % 128
+                rem //= 128
+                enc += bytes([d | (0x80 if rem else 0)])
+                if not rem:
+                    break
+            writer.write(b"\x10" + enc + body)
             await writer.drain()
-        LOG.info("injected -> device %s %s", topic, payload[:120])
+            connack = await asyncio.wait_for(reader.read(4), timeout=5)
+            if len(connack) < 4 or connack[3] != 0:
+                writer.close()
+                LOG.warning("cloud control connect rejected: %s", connack.hex())
+                return None
+            self._cloud_writer = writer
+            LOG.info("cloud control channel ready")
+            return writer
+
+    async def inject(self, topic: str, payload: str) -> bool:
+        writer = await self._ensure_cloud()
+        if writer is None:
+            LOG.warning("inject skipped: no cloud channel")
+            return False
+        self._pid += 1
+        if self._pid > 65000:
+            self._pid = 60001
+        writer.write(publish_packet(topic, payload.encode(), self._pid))
+        await writer.drain()
+        LOG.info("published control via cloud %s %s", topic, payload[:120])
         return True
 
     async def close(self) -> None:
