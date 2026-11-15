@@ -25,6 +25,7 @@ class MqttBridge:
         self.discovery = Discovery(self.publish)
         self.client = None
         self._state = {}  # (product, device) -> 合并后的状态
+        self._programs = {}  # device_id -> 选中的程序名
         self.mirror = None
 
     # ---- paho ----
@@ -45,6 +46,7 @@ class MqttBridge:
         client.subscribe("fotile/state/#")
         client.subscribe("fotile/+/+/set")
         client.subscribe("fotile/+/+/raw")
+        client.subscribe("fotile/+/+/program")
         LOG.info("subscribed sync/#, fotile/state/#, fotile/+/+/set")
 
     def publish(self, topic: str, payload: str, retain: bool = False) -> None:
@@ -65,6 +67,11 @@ class MqttBridge:
             self._handle_sync(topic, payload)
         elif topic.startswith("fotile/state/"):
             self._handle_retained_state(topic, payload)
+        elif topic.startswith("fotile/") and topic.endswith("/program"):
+            parts = topic.split("/")
+            if len(parts) == 4:
+                self._programs[parts[2]] = str(payload.get("program") or "")
+                LOG.info("selected program %s for %s", self._programs[parts[2]], parts[2])
         elif topic.startswith("fotile/") and topic.endswith("/raw"):
             self._handle_raw(topic, payload)
         elif topic.startswith("fotile/") and topic.endswith("/set"):
@@ -125,6 +132,18 @@ class MqttBridge:
         if "raw" in payload and isinstance(payload["raw"], dict):
             self.publish(control_topic, json.dumps(payload["raw"]), False)
             LOG.info("raw command -> %s %s", control_topic, payload["raw"])
+            return
+
+        if profile is not None and "start_program" in payload:
+            name = self._programs.get(device_id, "")
+            mode = (profile.programs or {}).get(name)
+            if mode is None:
+                LOG.warning("unknown program %s for %s", name, device_id)
+                return
+            body = {"WorkMode": mode, "WorkState": 1, "AddFunL": 1,
+                    "StoreTotalTime": 10, "PowerSwitchAll": 1}
+            self.publish(control_topic, json.dumps(body), False)
+            LOG.info("start selected program %s (WorkMode=%s)", name, mode)
             return
 
         # 语义化命令：动态值直接写进 TSL 字段

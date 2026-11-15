@@ -249,6 +249,12 @@
           "WorkState": 0
         }
       ]
+    },
+    "start_program": {
+      "button": {
+        "name": "启动所选程序"
+      },
+      "program": true
     }
   },
   "controls": [
@@ -319,5 +325,8 @@
       "max": 4,
       "icon": "mdi:state-machine"
     }
-  ]
+  ],
+  "programs": {
+    "日常洗": 0
+  }
 }

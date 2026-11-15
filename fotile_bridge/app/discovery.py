@@ -36,6 +36,7 @@ class Discovery:
             power_key=profile.power_key,
             model=profile.model,
             controls=profile.controls,
+            programs=profile.programs,
         )
 
     def ensure_generic(self, product_id: str, device_id: str, state: Dict[str, object]) -> None:
@@ -48,6 +49,7 @@ class Discovery:
             power_key=None,
             model="",
             controls=[],
+            programs={},
         )
 
     # ---- 内部 ----
@@ -62,6 +64,7 @@ class Discovery:
         power_key: str,
         model: str,
         controls: List[dict],
+        programs: Dict[str, int],
     ) -> None:
         key = f"{product_id}:{device_id}"
         if key in self._done:
@@ -102,6 +105,20 @@ class Discovery:
         if "drain" in commands:
             self._publish_drain_button(device, product_id, device_id)
         self._publish_controls(device, state_topic, product_id, device_id, controls)
+        if programs:
+            node = f"fotile_{product_id}_{device_id}_program"
+            payload = {
+                "name": "碗碟程序",
+                "unique_id": node,
+                "object_id": node,
+                "command_topic": f"fotile/{product_id}/{device_id}/program",
+                "command_template": '{"program": "{{ value }}"}',
+                "options": list(programs.keys()),
+                "icon": "mdi:dishwasher",
+                "device": device,
+            }
+            self.publish(f"homeassistant/select/{node}/config", json.dumps(payload, ensure_ascii=False), True)
+
         for name, spec in commands.items():
             if not isinstance(spec, dict) or "button" not in spec:
                 continue

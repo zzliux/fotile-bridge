@@ -129,3 +129,13 @@ def test_button_discovery_for_commands():
     topics = [t for t, _, _ in bridge.client.sent]
     assert any("_btn_daily_wash/config" in t for t in topics)
     assert any("_btn_pause/config" in t for t in topics)
+
+
+def test_program_select_and_start():
+    bridge = make_bridge()
+    bridge._programs["1149539722"] = "日常洗"
+    bridge._handle_command("fotile/1032A/1149539722/set", {"start_program": 1})
+    topic, payload, _ = bridge.client.sent[-1]
+    assert topic == "control/1032A/1149539722"
+    assert json.loads(payload)["WorkMode"] == 0
+    assert json.loads(payload)["WorkState"] == 1
