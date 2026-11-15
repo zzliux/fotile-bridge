@@ -104,6 +104,6 @@ FOTILE_HTTP_PORT=8088 FOTILE_DATA_DIR=./data \
 
 - [x] 最小云：login / access / routeService / tsl 缓存
 - [x] 设备 MQTT 接入 + HA Discovery（状态字段）
-- [ ] 抓一次 App 控制下发，补齐 `control/` 命令映射
+- [x] 抓一次 App 控制下发，补齐 `control/` 命令映射（开关机已实测）
 - [ ] TSL 自动学习（learn 模式已验证透传路径）
 - [ ] 支持更多方太品类（烟机/烤箱/蒸箱），按 productId 加 profile

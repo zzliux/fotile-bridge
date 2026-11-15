@@ -1,0 +1,60 @@
+"""命令映射与 Discovery 测试。"""
+from __future__ import annotations
+
+import json
+import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "fotile_bridge"))
+
+from app.config import Config  # noqa: E402
+from app.mqtt_bridge import MqttBridge  # noqa: E402
+from app.profile import ProfileStore  # noqa: E402
+
+PROFILE_DIR = os.path.join(os.path.dirname(__file__), "..", "fotile_bridge", "app", "profiles")
+
+
+class FakeClient:
+    def __init__(self):
+        self.sent = []
+
+    def publish(self, topic, payload, qos=0, retain=False):
+        self.sent.append((topic, payload, retain))
+
+
+def make_bridge():
+    bridge = MqttBridge(Config(), ProfileStore(PROFILE_DIR))
+    bridge.client = FakeClient()
+    return bridge
+
+
+def test_power_off_mapping():
+    bridge = make_bridge()
+    bridge._handle_command("fotile/1032A/1149539722/set", {"power": "off"})
+    topic, payload, _ = bridge.client.sent[-1]
+    assert topic == "control/1032A/1149539722"
+    assert json.loads(payload) == {"PowerSwitchAll": 0, "GSCPowerSwitch": 0}
+
+
+def test_power_on_mapping():
+    bridge = make_bridge()
+    bridge._handle_command("fotile/1032A/1149539722/set", {"power": "on"})
+    topic, payload, _ = bridge.client.sent[-1]
+    assert json.loads(payload) == {"PowerSwitchAll": 1, "GSCPowerSwitch": 1}
+
+
+def test_raw_passthrough():
+    bridge = make_bridge()
+    bridge._handle_command("fotile/1032A/1149539722/set", {"raw": {"WorkState": 0}})
+    topic, payload, _ = bridge.client.sent[-1]
+    assert topic == "control/1032A/1149539722"
+    assert json.loads(payload) == {"WorkState": 0}
+
+
+def test_discovery_publishes_power_switch():
+    bridge = make_bridge()
+    state = {"PowerSwitchAll": 1, "ClRemTime": 10}
+    bridge._handle_sync("sync/1032A/1149539722", state)
+    topics = [t for t, _, _ in bridge.client.sent]
+    assert "homeassistant/switch/fotile_1032A_1149539722_power/config" in topics
+    assert "homeassistant/sensor/fotile_1032A_1149539722_ClRemTime/config" in topics

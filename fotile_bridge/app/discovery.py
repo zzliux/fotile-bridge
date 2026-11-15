@@ -50,5 +50,24 @@ class Discovery:
                 payload["icon"] = field.icon
             topic = f"homeassistant/{field.entity}/{node}/config"
             self.publish(topic, json.dumps(payload, ensure_ascii=False), True)
+
+        if "power" in profile.commands:
+            node = f"fotile_{profile.product_id}_{device_id}_power"
+            payload = {
+                "name": "电源",
+                "unique_id": node,
+                "object_id": node,
+                "command_topic": f"fotile/{profile.product_id}/{device_id}/set",
+                "payload_on": json.dumps({"power": "on"}),
+                "payload_off": json.dumps({"power": "off"}),
+                "state_topic": state_topic,
+                "value_template": f"{{{{ value_json.{profile.power_key} }}}}",
+                "state_on": "1",
+                "state_off": "0",
+                "icon": "mdi:power",
+                "device": device,
+            }
+            self.publish(f"homeassistant/switch/{node}/config", json.dumps(payload, ensure_ascii=False), True)
+
         self._done.add(key)
         LOG.info("discovery published for %s (%d fields)", key, len(profile.fields))
