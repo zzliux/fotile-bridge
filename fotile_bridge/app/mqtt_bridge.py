@@ -68,7 +68,9 @@ class MqttBridge:
         product_id, device_id = parts[1].upper(), parts[2]
         profile = self.profiles.get(product_id)
         if profile is None:
-            LOG.debug("no profile for product %s", product_id)
+            # 没有 profile 的型号也不丢数据：按字段名自动生成实体
+            LOG.info("no profile for product %s, using generic discovery", product_id)
+            self.discovery.ensure_generic(product_id, device_id, payload)
             return
         self.discovery.ensure(profile, device_id, payload)
 

@@ -36,6 +36,7 @@ class Profile:
     commands: Dict[str, dict] = field(default_factory=dict)
     # 设备上报里出现即视为 binary 的键（0/1）
     power_key: str = "PowerSwitchAll"
+    model: str = ""
 
     @classmethod
     def from_dict(cls, data: dict) -> "Profile":
@@ -46,6 +47,7 @@ class Profile:
             fields=fields,
             commands=data.get("commands") or {},
             power_key=data.get("powerKey", "PowerSwitchAll"),
+            model=data.get("model", ""),
         )
 
 

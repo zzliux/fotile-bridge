@@ -107,3 +107,21 @@ FOTILE_HTTP_PORT=8088 FOTILE_DATA_DIR=./data \
 - [x] 抓一次 App 控制下发，补齐 `control/` 命令映射（开关机已实测）
 - [ ] TSL 自动学习（learn 模式已验证透传路径）
 - [ ] 支持更多方太品类（烟机/烤箱/蒸箱），按 productId 加 profile
+
+## 新增型号（通用化设计）
+
+项目**不按型号写死逻辑**，所有差异都收在 `profiles/<productId>.json` 里：
+
+1. **零配置先跑起来**：没有 profile 的型号，通用 Discovery 会把 `sync` 报文里的每个字段按名字自动生成传感器（`mdi:gauge`），保证先能看到数据、能监控。
+2. **想变好看**：复制 `profiles/1032A.json`，改 `productId`、`model`，给字段补中文名/单位/图标/`binary_sensor` 类型。
+3. **控制**：抓一次 App 下发的 `control/{pid}/{did}` 报文，写进 `commands`（参考 `power` 的写法）；状态回读直接复用 `sync`。
+4. **字段多出来也不怕**：profile 里没声明的字段仍会自动补成传感器。
+
+目前已适配：
+
+| productId | 型号 | 说明 |
+|---|---|---|
+| `1032A` | JBSD2T-02-M6Max | 洗碗机，状态/开关机已实测 |
+
+> 不同型号的字段集合可能不同，但 `sync` 是自描述 JSON，通用 Discovery 能兜住；
+> 控制报文差异用 profile 的 `commands` 表达，不需要改代码。

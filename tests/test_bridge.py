@@ -58,3 +58,18 @@ def test_discovery_publishes_power_switch():
     topics = [t for t, _, _ in bridge.client.sent]
     assert "homeassistant/switch/fotile_1032A_1149539722_power/config" in topics
     assert "homeassistant/sensor/fotile_1032A_1149539722_ClRemTime/config" in topics
+
+
+def test_generic_discovery_for_unknown_product():
+    bridge = make_bridge()
+    bridge._handle_sync("sync/9999X/ABC123", {"SomeField": 42, "Other": "ok"})
+    topics = [t for t, _, _ in bridge.client.sent]
+    assert "homeassistant/sensor/fotile_9999X_ABC123_SomeField/config" in topics
+    assert "homeassistant/sensor/fotile_9999X_ABC123_Other/config" in topics
+
+
+def test_extra_fields_become_sensors():
+    bridge = make_bridge()
+    bridge._handle_sync("sync/1032A/1149539722", {"ClRemTime": 5, "NewField": 1})
+    topics = [t for t, _, _ in bridge.client.sent]
+    assert "homeassistant/sensor/fotile_1032A_1149539722_NewField/config" in topics
