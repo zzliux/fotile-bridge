@@ -149,3 +149,13 @@ def test_drain_sequence(monkeypatch):
     bridge._handle_command("fotile/1032A/1149539722/set", {"drain": 1})
     sent = [json.loads(p) for t, p, _ in bridge.client.sent if t == "control/1032A/1149539722"]
     assert sent == [{"PowerSwitchAll": 0, "GSCPowerSwitch": 0}, {"AutoDrain": 1}]
+
+
+def test_program_select_raw_string():
+    from types import SimpleNamespace
+    bridge = make_bridge()
+    bridge._on_message(None, None, SimpleNamespace(
+        topic="fotile/1032A/1149539722/program",
+        payload="超快洗".encode(),
+    ))
+    assert bridge._programs["1149539722"] == "超快洗"

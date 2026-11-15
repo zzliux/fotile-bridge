@@ -57,9 +57,27 @@ class MqttBridge:
 
     def _on_message(self, client, userdata, msg):
         topic = msg.topic
+        raw = msg.payload.decode("utf-8", "replace")
+        if topic.endswith("/program"):
+            # select 可能发原始字符串，也可能发 JSON
+            name = raw
+            try:
+                parsed = json.loads(raw)
+                if isinstance(parsed, dict):
+                    name = str(parsed.get("program") or "")
+                elif isinstance(parsed, str):
+                    name = parsed
+            except ValueError:
+                pass
+            name = name.strip().strip('"')
+            parts = topic.split("/")
+            if len(parts) == 4:
+                self._programs[parts[2]] = name
+                LOG.info("selected program %s for %s", name, parts[2])
+            return
         try:
-            payload = json.loads(msg.payload.decode("utf-8"))
-        except (ValueError, UnicodeDecodeError):
+            payload = json.loads(raw)
+        except ValueError:
             LOG.debug("non-json message on %s", topic)
             return
 
