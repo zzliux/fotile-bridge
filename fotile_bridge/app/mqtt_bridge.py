@@ -24,6 +24,7 @@ class MqttBridge:
         self.discovery = Discovery(self.publish)
         self.client = None
         self._state = {}  # (product, device) -> 合并后的状态
+        self.mirror = None
 
     # ---- paho ----
 
@@ -77,6 +78,10 @@ class MqttBridge:
 
         # 保留合并后的状态，HA 重启后也能直接拿到数值
         self.publish(f"fotile/state/{product_id}/{device_id}", json.dumps(merged, ensure_ascii=False), True)
+
+        # 镜像到方太云（App 显示在线）
+        if self.mirror is not None:
+            self.mirror.publish_state(product_id, device_id, merged)
 
         profile = self.profiles.get(product_id)
         if profile is None:

@@ -19,6 +19,13 @@ class Config:
     ha_mqtt_password: str = ""
     log_level: str = "info"
     data_dir: str = "/data"
+    # 云端影子设备（让方太 App 显示在线）
+    mirror_enabled: bool = False
+    mirror_broker: str = "121.41.80.81"
+    mirror_broker_port: int = 1883
+    mirror_device_id: str = ""
+    mirror_product_id: str = "1032A"
+    mirror_password: str = ""
 
 
 def load_config(path: str = "/data/options.json") -> Config:
@@ -39,5 +46,11 @@ def load_config(path: str = "/data/options.json") -> Config:
         ha_mqtt_password=raw.get("ha_mqtt_password") or os.environ.get("FOTILE_HA_MQTT_PASSWORD", ""),
         log_level=raw.get("log_level", os.environ.get("FOTILE_LOG_LEVEL", "info")),
         data_dir=os.environ.get("FOTILE_DATA_DIR", "/data"),
+        mirror_enabled=bool(raw.get("mirror_enabled", False)),
+        mirror_broker=raw.get("mirror_broker") or os.environ.get("FOTILE_MIRROR_BROKER", "121.41.80.81"),
+        mirror_broker_port=int(raw.get("mirror_broker_port", 1883)),
+        mirror_device_id=str(raw.get("mirror_device_id") or ""),
+        mirror_product_id=str(raw.get("mirror_product_id") or "1032A"),
+        mirror_password=str(raw.get("mirror_password") or ""),
     )
     return cfg

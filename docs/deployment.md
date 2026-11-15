@@ -214,3 +214,48 @@ uci commit firewall && /etc/init.d/firewall restart
 
 - 主路由上临时部署过 tcpdump（`/tmp/tcpdump2`），已删除
 - 旁路由上的 `/tmp/tcpdump`、`/tmp/libpcap.so.1*`、`/tmp/fotile.pcap` 是临时文件，重启即消失
+
+## 9. 云端影子：让方太 App 显示在线
+
+设备连本地 broker 后，真实云端就看不到它了，App 会显示离线。解决办法是让 add-on **再用设备自己的身份登录一次方太云**，做一个"虚拟设备"：
+
+```
+本地设备 ──▶ 本地 broker ──▶ HA
+                  │
+                  └─ 状态镜像 ──▶ 方太云 broker（虚拟设备 Fotile_DEV_<deviceId>）
+                                        │
+                                   App 看到在线、看到状态
+                                   App 下发的 control → 本地设备
+```
+
+原理：设备登云的 MQTT 凭据是固定的（不是动态 token）：
+
+| 字段 | 值 |
+|---|---|
+| broker | `121.41.80.81:1883`（云端有多个入口，可换） |
+| clientId | `Fotile_DEV_1149539722` |
+| username | `1149539722` |
+| password | `Pwd...`（设备侧混淆串，抓包可得） |
+| will | `sync/1032A/1149539722` → `{"offline":0}` |
+
+add-on 用这组凭据连上云，订阅 `control/`、`service/`、`CustomEvent/`，把本地状态转发到 `sync/`。云端认为设备在线，App 正常显示；App 下发的控制再转回本地 `control/`，由本地设备执行。
+
+### 配置
+
+```yaml
+mirror_enabled: true
+mirror_broker: "121.41.80.81"
+mirror_broker_port: 1883
+mirror_device_id: "1149539722"
+mirror_product_id: "1032A"
+mirror_password: "Pwd3lWZPlmUEFlSvJkNyIXWjplMph1ZwNVQFVjMBFzMBJUR3cTNwUUNBhTN5QDO0QDMwADMwADMwEDM=="
+```
+
+> 密码是设备级凭据，明文存在 add-on 的 `/data/options.json` 里；
+> 云端 broker IP 会轮换，连不上就换 `121.41.80.81` / `120.26.51.72` / `47.97.27.44`。
+
+### 限制
+
+- App 的在线状态依赖云端，断网时 App 仍然显示离线（但 HA 本地控制不受影响）
+- 云端可能会对 clientId 做唯一性校验；确认设备本身已经不在云端连接（我们接管后不会）
+- 如果云端换了鉴权方式，需要重新抓一次设备的 CONNECT 报文更新密码

@@ -6,6 +6,7 @@ import logging
 import os
 
 from .cloud import CloudServer
+from .cloud_mirror import CloudMirror
 from .config import load_config
 from .mqtt_bridge import MqttBridge
 from .profile import ProfileStore
@@ -30,10 +31,19 @@ async def run() -> None:
     await cloud.start()
 
     bridge = MqttBridge(cfg, profiles)
+
+    mirror = CloudMirror(cfg, bridge.publish)
+    bridge.mirror = mirror
+
     try:
         bridge.start()
     except Exception as exc:  # noqa: BLE001
         LOG.error("MQTT bridge failed to start: %s", exc)
+
+    try:
+        mirror.start()
+    except Exception as exc:  # noqa: BLE001
+        LOG.error("cloud mirror failed to start: %s", exc)
 
     LOG.info("fotile bridge ready")
     await asyncio.Event().wait()

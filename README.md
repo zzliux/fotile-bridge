@@ -30,6 +30,7 @@
 - **不改设备**：设备仍然认为自己连的是方太云
 - 设备开机：`time_sync` → `new_device_login` → `routeService` → 连本地 MQTT
 - HA 侧：MQTT Discovery 自动生成实体（电源开关 + 状态传感器）
+- **云端影子**：add-on 同时用设备身份登录方太云，App 仍显示在线、能看状态和下发控制（详见 [docs/deployment.md](docs/deployment.md)）
 
 完整步骤、验证命令、踩坑记录见 [docs/deployment.md](docs/deployment.md)。
 
