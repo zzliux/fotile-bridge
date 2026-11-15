@@ -43,6 +43,7 @@ class MqttBridge:
         client.subscribe("sync/#")
         client.subscribe("fotile/state/#")
         client.subscribe("fotile/+/+/set")
+        client.subscribe("fotile/+/+/raw")
         LOG.info("subscribed sync/#, fotile/state/#, fotile/+/+/set")
 
     def publish(self, topic: str, payload: str, retain: bool = False) -> None:
@@ -63,6 +64,8 @@ class MqttBridge:
             self._handle_sync(topic, payload)
         elif topic.startswith("fotile/state/"):
             self._handle_retained_state(topic, payload)
+        elif topic.startswith("fotile/") and topic.endswith("/raw"):
+            self._handle_raw(topic, payload)
         elif topic.startswith("fotile/") and topic.endswith("/set"):
             self._handle_command(topic, payload)
 
@@ -102,6 +105,14 @@ class MqttBridge:
         else:
             self.discovery.ensure(profile, device_id, payload)
 
+    def _handle_raw(self, topic: str, payload: dict) -> None:
+        parts = topic.split("/")
+        if len(parts) != 4:
+            return
+        control_topic = f"control/{parts[1].upper()}/{parts[2]}"
+        self.publish(control_topic, json.dumps(payload, ensure_ascii=False), False)
+        LOG.info("raw command -> %s %s", control_topic, payload)
+
     def _handle_command(self, topic: str, payload: dict) -> None:
         parts = topic.split("/")
         if len(parts) != 4:
@@ -113,6 +124,20 @@ class MqttBridge:
         if "raw" in payload and isinstance(payload["raw"], dict):
             self.publish(control_topic, json.dumps(payload["raw"]), False)
             LOG.info("raw command -> %s %s", control_topic, payload["raw"])
+            return
+
+        # 语义化命令：动态值直接写进 TSL 字段
+        if "appointment" in payload:
+            try:
+                minutes = int(payload["appointment"])
+            except (TypeError, ValueError):
+                return
+            self.publish(control_topic, json.dumps({"SetAppointmentTime": minutes}), False)
+            LOG.info("appointment=%s -> %s", minutes, control_topic)
+            return
+        if "drain" in payload:
+            self.publish(control_topic, json.dumps({"AutoDrain": 1}), False)
+            LOG.info("drain -> %s", control_topic)
             return
 
         if profile is None or not profile.commands:

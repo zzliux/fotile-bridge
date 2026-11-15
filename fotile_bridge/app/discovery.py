@@ -94,6 +94,10 @@ class Discovery:
 
         if "power" in commands:
             self._publish_power_switch(device, state_topic, product_id, device_id, power_key or "PowerSwitchAll")
+        if "appointment" in commands:
+            self._publish_appointment(device, state_topic, product_id, device_id)
+        if "drain" in commands:
+            self._publish_drain_button(device, product_id, device_id)
 
         self._done.add(key)
         LOG.info("discovery published for %s (%d entities)", key, published)
@@ -135,6 +139,38 @@ class Discovery:
                 + " | string, value_json." + field.key + ") }}"
             )
         return f"{{{{ value_json.{field.key} }}}}"
+
+    def _publish_appointment(self, device: dict, state_topic: str, product_id: str, device_id: str) -> None:
+        node = f"fotile_{product_id}_{device_id}_appointment"
+        payload = {
+            "name": "预约时间",
+            "unique_id": node,
+            "object_id": node,
+            "command_topic": f"fotile/{product_id}/{device_id}/set",
+            "command_template": '{"appointment": {{ value }}}',
+            "min": 0,
+            "max": 1440,
+            "step": 1,
+            "unit_of_measurement": "min",
+            "icon": "mdi:clock-outline",
+            "state_topic": state_topic,
+            "value_template": "{{ value_json.SetAppointmentTime }}",
+            "device": device,
+        }
+        self.publish(f"homeassistant/number/{node}/config", json.dumps(payload, ensure_ascii=False), True)
+
+    def _publish_drain_button(self, device: dict, product_id: str, device_id: str) -> None:
+        node = f"fotile_{product_id}_{device_id}_drain"
+        payload = {
+            "name": "排水（实验）",
+            "unique_id": node,
+            "object_id": node,
+            "command_topic": f"fotile/{product_id}/{device_id}/set",
+            "payload_press": '{"drain": 1}',
+            "icon": "mdi:water-pump",
+            "device": device,
+        }
+        self.publish(f"homeassistant/button/{node}/config", json.dumps(payload, ensure_ascii=False), True)
 
     def _publish_power_switch(self, device: dict, state_topic: str, product_id: str, device_id: str, power_key: str) -> None:
         node = f"fotile_{product_id}_{device_id}_power"

@@ -89,3 +89,19 @@ def test_disabled_field_has_enabled_by_default_false():
     configs = {t: p for t, p, _ in bridge.client.sent if t.endswith("_PowerSwitchAll/config")}
     payload = json.loads(next(iter(configs.values())))
     assert payload["enabled_by_default"] is False
+
+
+def test_number_and_button_discovery():
+    bridge = make_bridge()
+    bridge._handle_sync("sync/1032A/1149539722", {"SetAppointmentTime": 30})
+    topics = [t for t, _, _ in bridge.client.sent]
+    assert any(t.startswith("homeassistant/number/") and t.endswith("_appointment/config") for t in topics)
+    assert any(t.startswith("homeassistant/button/") and t.endswith("_drain/config") for t in topics)
+
+
+def test_appointment_command():
+    bridge = make_bridge()
+    bridge._handle_command("fotile/1032A/1149539722/set", {"appointment": 45})
+    topic, payload, _ = bridge.client.sent[-1]
+    assert topic == "control/1032A/1149539722"
+    assert json.loads(payload) == {"SetAppointmentTime": 45}
