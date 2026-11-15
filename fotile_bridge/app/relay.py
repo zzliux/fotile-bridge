@@ -148,7 +148,10 @@ class MqttRelay:
 
         async def dev_to_up():
             while True:
-                data = await reader.read(65536)
+                try:
+                    data = await reader.read(65536)
+                except (ConnectionResetError, OSError):
+                    break
                 if not data:
                     break
                 for pkt in splitter_dev.feed(data):
@@ -160,7 +163,10 @@ class MqttRelay:
 
         async def up_to_dev():
             while True:
-                data = await up_reader.read(65536)
+                try:
+                    data = await up_reader.read(65536)
+                except (ConnectionResetError, OSError):
+                    break
                 if not data:
                     break
                 for pkt in splitter_up.feed(data):
@@ -171,6 +177,12 @@ class MqttRelay:
 
         try:
             await asyncio.gather(dev_to_up(), up_to_dev())
+        except (ConnectionResetError, OSError):
+            pass
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            LOG.warning("relay connection error: %s", exc)
         finally:
             self._active = max(0, self._active - 1)
             self.device_writer = None
