@@ -387,12 +387,6 @@
       "AddFunL": 1,
       "store": true
     },
-    "谷电洗": {
-      "WorkMode": 135,
-      "AddFunL": 0,
-      "store": false,
-      "appointment": true
-    },
     "餐前暖碟": {
       "WorkMode": 136,
       "AddFunL": 1,

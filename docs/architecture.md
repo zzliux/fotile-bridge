@@ -184,3 +184,39 @@ TSL 已随项目附带（`tsl_seed`），首次启动自动灌进缓存；没有
 
 `GSC*`（蒸汽清洁）、`Valley*`（峰谷）、`AuthType`、`RemoteAuth`、`WorkMode` 这些
 含义未完全确认或偏内部的字段，默认 `enabled_by_default: false`，需要时在 HA 里手动启用。
+
+## 程序与控制报文（2026-11-15 实测，JBSD2T-02-M6Max）
+
+开始程序时 App 会**先提交程序参数、再下发启动**：
+
+```json
+{"WorkMode":0,"WorkState":1,"AddFunL":1,"StoreTotalTime":10,"PowerSwitchAll":1}
+```
+
+| 动作 | 报文 |
+|---|---|
+| 开始 / 继续 | `{"WorkState":1}` |
+| 暂停 | `{"WorkState":2}` |
+| 取消 | `{"WorkState":0}` |
+| 开关机 | `{"PowerSwitchAll":1/0,"GSCPowerSwitch":1/0}` |
+
+程序映射（`profiles/1032A.json` 的 `programs`）：
+
+| 程序 | WorkMode | AddFunL | 保洁存储 |
+|---|---|---|---|
+| 日常洗 | 0 | 1 | 支持 |
+| 超快洗 | 1 | 0 | 不支持 |
+| 超净洗 | 2 | 1 | 支持 |
+| 晶亮洗 | 3 | 1 | 支持 |
+| 自清洁 | 4 | 0 | 不支持 |
+| 节能洗 | 5 | 1 | 支持 |
+| 智能洗 | 6 | 1 | 支持 |
+| 预冲洗 | 128 | 0 | 不支持 |
+| 母婴洗 | 129 | 1 | 支持 |
+| 静音洗 | 130 | 1 | 支持 |
+| 蒸汽消杀 | 132 | 1 | 支持 |
+| 独立烘干 | 133 | 1 | 支持 |
+| 餐前暖碟 | 136 | 1 | 支持 |
+
+- `StoreTotalTime` 单位是**天**，范围 1–99
+- 谷电洗（`WorkMode=135`）走的是预约流程（`ValleyAppoint`），未实现
