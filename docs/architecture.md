@@ -220,3 +220,14 @@ TSL 已随项目附带（`tsl_seed`），首次启动自动灌进缓存；没有
 
 - `StoreTotalTime` 单位是**天**，范围 1–99
 - 谷电洗（`WorkMode=135`）走的是预约流程（`ValleyAppoint`），未实现
+
+### 排水（已验证）
+
+排水必须在**关机状态**下执行，App 的顺序是：先关机，再发排水。
+
+```json
+{"PowerSwitchAll":0,"GSCPowerSwitch":0}   // 先关机
+{"AutoDrain":1}                           // 再排水
+```
+
+HA 里的「排水」按钮按这个顺序发送，间隔 2 秒。

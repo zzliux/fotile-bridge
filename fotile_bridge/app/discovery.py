@@ -107,8 +107,6 @@ class Discovery:
             self._publish_power_switch(device, state_topic, product_id, device_id, power_key or "PowerSwitchAll")
         if self.show_experimental and "appointment" in commands:
             self._publish_appointment(device, state_topic, product_id, device_id)
-        if self.show_experimental and "drain" in commands:
-            self._publish_drain_button(device, product_id, device_id)
         self._publish_controls(device, state_topic, product_id, device_id, controls)
         if self.show_experimental:
             self._publish_text_controls(device, state_topic, product_id, device_id, text_controls)

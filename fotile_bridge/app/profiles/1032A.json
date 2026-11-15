@@ -204,7 +204,19 @@
       "field": "SetAppointmentTime"
     },
     "drain": {
-      "experimental": true
+      "button": {
+        "name": "排水"
+      },
+      "delay_ms": 2000,
+      "sequence": [
+        {
+          "PowerSwitchAll": 0,
+          "GSCPowerSwitch": 0
+        },
+        {
+          "AutoDrain": 1
+        }
+      ]
     },
     "start": {
       "button": {

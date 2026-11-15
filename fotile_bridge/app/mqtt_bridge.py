@@ -160,11 +160,6 @@ class MqttBridge:
             self.publish(control_topic, json.dumps({"SetAppointmentTime": minutes}), False)
             LOG.info("appointment=%s -> %s", minutes, control_topic)
             return
-        if "drain" in payload:
-            self.publish(control_topic, json.dumps({"AutoDrain": 1}), False)
-            LOG.info("drain -> %s", control_topic)
-            return
-
         if profile is not None:
             known = {f.key for f in profile.fields}
             if payload and all(k in known for k in payload):
