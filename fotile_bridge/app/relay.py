@@ -95,6 +95,7 @@ class MqttRelay:
         self._pending_pids = set()
         self._cloud_writer = None
         self._cloud_creds = None
+        self._cloud_used = None
         self._cloud_lock = asyncio.Lock()
 
     async def start(self) -> None:
@@ -287,18 +288,31 @@ class MqttRelay:
             return True
         return False
 
+    def _drop_cloud(self):
+        if self._cloud_writer is not None:
+            try:
+                self._cloud_writer.close()
+            except Exception:  # noqa: BLE001
+                pass
+        self._cloud_writer = None
+        self._cloud_used = None
+
     async def _ensure_cloud(self):
         if self._cloud_creds is None:
             return None
         async with self._cloud_lock:
-            if self._cloud_writer is not None:
-                return self._cloud_writer
+            if self._cloud_writer is not None and not self._cloud_writer.is_closing():
+                if self._cloud_used == self._cloud_creds:
+                    return self._cloud_writer
+                LOG.info("device credentials rotated, reconnecting cloud control channel")
+                self._drop_cloud()
             user, pw = self._cloud_creds
             reader, writer = await asyncio.wait_for(
                 asyncio.open_connection(self.cfg.relay_upstream, 1883), timeout=10
             )
             cid = b"fotile_ha_bridge"
-            vh = b"\x00\x06MQIsdp\x03" + bytes([0x02 | 0xC0]) + b"\x00\x3c"
+            # keepalive=0：空闲时不会被云端按 90s 超时踢掉
+            vh = b"\x00\x06MQIsdp\x03" + bytes([0x02 | 0xC0]) + b"\x00\x00"
             body = vh + struct.pack("!H", len(cid)) + cid
             body += struct.pack("!H", len(user)) + user
             body += struct.pack("!H", len(pw)) + pw
@@ -318,6 +332,7 @@ class MqttRelay:
                 LOG.warning("cloud control connect rejected: %s", connack.hex())
                 return None
             self._cloud_writer = writer
+            self._cloud_used = self._cloud_creds
             LOG.info("cloud control channel ready")
             return writer
 
@@ -329,8 +344,18 @@ class MqttRelay:
         self._pid += 1
         if self._pid > 65000:
             self._pid = 60001
-        writer.write(publish_packet(topic, payload.encode(), self._pid))
-        await writer.drain()
+        try:
+            writer.write(publish_packet(topic, payload.encode(), self._pid))
+            await writer.drain()
+        except (ConnectionResetError, OSError, RuntimeError) as exc:
+            LOG.warning("cloud control write failed, reconnecting: %s", exc)
+            async with self._cloud_lock:
+                self._drop_cloud()
+            writer = await self._ensure_cloud()
+            if writer is None:
+                return False
+            writer.write(publish_packet(topic, payload.encode(), self._pid))
+            await writer.drain()
         LOG.info("published control via cloud %s %s", topic, payload[:120])
         return True
 
