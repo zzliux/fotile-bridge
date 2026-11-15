@@ -16,7 +16,13 @@ class Field:
     icon: str = ""
     entity: str = "sensor"  # sensor | binary_sensor
     options: Dict[str, str] = field(default_factory=dict)  # 原始值 -> 可读文案
-    decode: str = ""  # hhmm = 小时*256+分钟
+    note: str = ""  # 字段语义备注（不参与运行）
+    # 原始值编码：
+    #   ""        = 原样显示
+    #   hhmm      = 小时*256+分钟（时长，286 -> 90 分钟）
+    #   hhmm_time = 小时*256+分钟（时间点，6144 -> 未设置）
+    #   hhmm_day  = (天*24+小时)*256+分钟（预约，12062 -> 明天 23:30）
+    decode: str = ""
     enabled: bool = True
 
     @classmethod
@@ -30,6 +36,7 @@ class Field:
             entity=data.get("entity", "sensor"),
             options={str(k): str(v) for k, v in (data.get("values") or {}).items()},
             decode=data.get("decode", ""),
+            note=data.get("note", ""),
             enabled=bool(data.get("enabled", True)),
         )
 

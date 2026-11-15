@@ -19,7 +19,8 @@
         "3": "暂停",
         "4": "已完成",
         "6": "预约等待"
-      }
+      },
+      "note": "0关机 1待机 2运行 3未确认 4完成 6预约等待"
     },
     "RunState": {
       "name": "运行状态",
@@ -49,7 +50,8 @@
       "name": "预约启动",
       "icon": "mdi:clock-outline",
       "decode": "hhmm_day",
-      "enabled": true
+      "enabled": true,
+      "note": "(天数*24+小时)*256+分钟；6144=未设置；decode=hhmm_day"
     },
     "SoftensaltLevel": {
       "name": "软水盐档位",
@@ -85,21 +87,24 @@
       "unit": "min",
       "device_class": "duration",
       "icon": "mdi:timer-sand",
-      "decode": "hhmm"
+      "decode": "hhmm",
+      "note": "小时*256+分钟；decode=hhmm"
     },
     "StRemTime": {
       "name": "剩余总时间(原始值)",
       "unit": "min",
       "device_class": "duration",
       "icon": "mdi:timer-outline",
-      "enabled": false
+      "enabled": false,
+      "note": "恒为2040，非倒计时，未确认，保持隐藏"
     },
     "SetWorkTime": {
       "name": "设定工作时间",
       "unit": "min",
       "device_class": "duration",
       "icon": "mdi:clock-digital",
-      "decode": "hhmm"
+      "decode": "hhmm",
+      "note": "小时*256+分钟；decode=hhmm"
     },
     "GSCPowerSwitch": {
       "name": "蒸汽清洁电源",
@@ -126,14 +131,16 @@
       "unit": "min",
       "device_class": "duration",
       "icon": "mdi:clock-digital",
-      "enabled": false
+      "enabled": false,
+      "note": "小时*256+分钟，默认18=18分钟"
     },
     "GSCClRemT": {
       "name": "蒸汽清洁剩余时间",
       "unit": "min",
       "device_class": "duration",
       "icon": "mdi:timer-sand",
-      "enabled": false
+      "enabled": false,
+      "note": "小时*256+分钟"
     },
     "GSCDoorLockSta": {
       "name": "蒸汽清洁门锁",
@@ -336,5 +343,12 @@
       "field": "WorkState",
       "name": "工作状态(原始值)"
     }
-  ]
+  ],
+  "_notes": {
+    "encode_time": "时间字段统一编码：小时*256+分钟。例：286=0x011E=1小时30分=90分钟",
+    "encode_appointment": "预约编码：(天数*24+小时)*256+分钟。今天21:00=5376，明天23:30=12062；6144(24:00)兼作未设置（需结合 WorkState 判断）",
+    "workstate": "0=关机 1=待机 2=运行 3=未确认 4=完成 6=预约等待",
+    "stremtime": "恒为2040，不是倒计时，语义未确认，默认隐藏",
+    "decode_kinds": "profile 里 decode 取值：hhmm=时长(小时*256+分)；hhmm_time=时间点；hhmm_day=带天偏移的预约"
+  }
 }

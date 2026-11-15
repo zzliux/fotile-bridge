@@ -174,6 +174,14 @@ class Discovery:
 
     @staticmethod
     def _template(field: Field) -> str:
+        """把原始值转成可读值。
+
+        方太时间字段不是普通分钟数，而是打包编码：
+          hhmm      = 小时*256 + 分钟            （时长，如 286 = 1h30m = 90 分钟）
+          hhmm_time = 小时*256 + 分钟            （时间点，6144 = 24:00 = 未设置）
+          hhmm_day  = (天数*24+小时)*256 + 分钟  （预约，如 12062 = 明天 23:30）
+        见 profiles/1032A.json 的 _notes。
+        """
         if field.decode == "hhmm_day":
             v = f"value_json.{field.key}"
             return (
