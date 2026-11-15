@@ -18,7 +18,6 @@ except FileNotFoundError:
 port = int(opt.get('mqtt_port', 1883))
 bridge_host = (opt.get('ha_mqtt_host') or '').strip()
 lines = [
-    'per_listener_settings false',
     f'listener {port} 0.0.0.0',
     'allow_anonymous true',
     'persistence false',
@@ -31,17 +30,22 @@ if bridge_host:
         '',
         'connection ha',
         f'address {bridge_host}:{int(opt.get("ha_mqtt_port", 1883))}',
+        'remote_clientid fotile_bridge',
+        'cleansession true',
+        'start_type automatic',
+        'notifications false',
+        'try_private false',
         'topic sync/# out 0',
         'topic reply/# out 0',
         'topic homeassistant/# out 0',
         'topic fotile/# in 0',
-        'try_private false',
     ]
     user = (opt.get('ha_mqtt_user') or '').strip()
     if user:
-        lines.append(f'username {user}')
+        # 注意：桥接认证必须用 remote_username/remote_password，username/password 是本地监听器的
+        lines.append(f'remote_username {user}')
         pw = opt.get('ha_mqtt_password') or ''
-        lines.append(f'password {pw}')
+        lines.append(f'remote_password {pw}')
 with open('/data/mosquitto.conf', 'w') as f:
     f.write('\n'.join(lines) + '\n')
 PY
