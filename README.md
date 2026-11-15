@@ -30,7 +30,7 @@
 - **不改设备**：设备仍然认为自己连的是方太云
 - 设备开机：`time_sync` → `new_device_login` → `routeService` → 连本地 MQTT
 - HA 侧：MQTT Discovery 自动生成实体（电源开关 + 状态传感器）
-- **云端影子（模式 A）**：设备直连方太云，add-on 另开一个客户端挂在云上——订阅 `sync` 拿状态、往 `control` 发命令，App 在线且可控（详见 [docs/deployment.md](docs/deployment.md) 第 9 节）
+- **MQTT 透明中转（当前方案）**：设备仍连真实云端，但 1883 经过 add-on 中转；中转旁听状态给 HA、把 HA 控制注入设备连接。App 在线、HA 可控、无需抓凭据（详见 [docs/deployment.md](docs/deployment.md) 第 10 节）
 
 完整步骤、验证命令、踩坑记录见 [docs/deployment.md](docs/deployment.md)。
 

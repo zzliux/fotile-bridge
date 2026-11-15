@@ -259,3 +259,50 @@ mirror_password: "Pwd3lWZPlmUEFlSvJkNyIXWjplMph1ZwNVQFVjMBFzMBJUR3cTNwUUNBhTN5QD
 - App 的在线状态依赖云端，断网时 App 仍然显示离线（但 HA 本地控制不受影响）
 - 云端可能会对 clientId 做唯一性校验；确认设备本身已经不在云端连接（我们接管后不会）
 - 如果云端换了鉴权方式，需要重新抓一次设备的 CONNECT 报文更新密码
+
+## 10. MQTT 透明中转（当前采用的方案）
+
+设备必须连真实云端，否则 App 会离线、控制授权也会失效。所以最终方案是**中转**而不是本地 broker：
+
+```
+洗碗机 ──1883──▶ 旁路由 DNAT ──▶ HA:1886 中转 ──▶ 真实云 broker
+                                     │
+                                     ├─ 旁听 device→cloud 的 sync → 本地 broker → HA
+                                     └─ HA control → 注入 cloud→device 连接
+```
+
+- 设备 **CONNECT/密码/会话全部由设备自己维护**，中转不需要任何凭据，也不会有 clientId 冲突
+- 云端视角设备一直在线，App 正常；HA 通过旁听拿状态
+- HA 控制注入到设备方向的 TCP 流里（QoS0 PUBLISH），设备当成云端下发执行
+
+### 旁路由规则
+
+```bash
+scp deploy/side-router-relay.sh root@192.168.31.2:/tmp/
+ssh root@192.168.31.2 'sh /tmp/side-router-relay.sh apply'
+```
+
+```
+table ip fotile_relay {
+  chain prerouting  { ip saddr 192.168.31.241 tcp dport 1883 dnat to 192.168.31.150:1886 }
+  chain postrouting { ip saddr 192.168.31.241 ip daddr 192.168.31.150 tcp dport 1886 masquerade }
+}
+```
+
+### add-on 配置
+
+```yaml
+relay_enabled: true
+relay_port: 1886
+relay_upstream: "121.41.80.81"
+mirror_enabled: false      # 影子客户端已废弃
+```
+
+### 踩坑
+
+| 现象 | 原因 | 处理 |
+|---|---|---|
+| `No file descriptors available` 刷屏 | 用 `SO_ORIGINAL_DST` 取原地址在 nftables DNAT 下会指回自己，形成自环 | 0.4.2 起改为固定 `relay_upstream`，并限制最多 4 条连接 |
+| 中转探测 8 秒无 CONNACK | 云端 broker 只接受设备 clientId/凭据，随机客户端被静默断开 | 正常现象，不代表中转坏了 |
+| App 能看在线但控制不了 | 设备需要**面板启动一次**完成远程授权（`RemoteAuth=1, NewRemoteAuth=3`） | 在洗碗机面板按一次启动 |
+| 控制后界面更新慢 | 设备上报有节奏（运行时约 10s 一次），不是链路问题 | 固件行为，无法优化 |
