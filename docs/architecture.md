@@ -105,3 +105,37 @@ PUBLISH（设备 → 云），主题 `sync/1032A/1149539722`：
 1. 抓包得到完整状态 JSON（字段名即语义，值为枚举/数值）
 2. 观察状态迁移（如一轮洗涤的 `WorkState`/`RunState` 变化）确定枚举含义
 3. 控制报文格式通过抓一次 App 下发的 `control/...` 得到
+
+## 控制报文（2026-11-15 实测）
+
+主题：`control/1032A/1149539722`（云端 → 设备，QoS1，实测会重发 2–3 次，处理时按幂等对待）
+
+| 动作 | payload |
+|---|---|
+| 关机 | `{"PowerSwitchAll":0,"GSCPowerSwitch":0}` |
+| 开机 | `{"PowerSwitchAll":1,"GSCPowerSwitch":1}` |
+
+设备回执（`sync/1032A/1149539722`）：
+
+```json
+// 关机后
+{"PowerSwitchAll":0,"WorkState":0,"RunState":0,"DoorLockSta":0,"ClRemTime":286,
+ "SetWorkTime":0,"GSCPowerSwitch":0,"GSCWorkSta":0,"GSCSetWorkT":0}
+// 开机后
+{"PowerSwitchAll":1,"WorkState":1,"SetWorkTime":286,"GSCPowerSwitch":1,
+ "GSCWorkSta":1,"GSCSetWorkT":18}
+```
+
+### 已确认的枚举
+
+| 字段 | 值 | 含义 |
+|---|---|---|
+| `PowerSwitchAll` | 0 / 1 | 关 / 开 |
+| `WorkState` | 0 | 关机 |
+| | 1 | 待机（开机未选程序） |
+| | 2 | 运行中 |
+| | 4 | 已完成 |
+| `ClRemTime` | 数值（分钟） | 剩余时间；关机时回到默认程序时长 286 |
+| `GSCSetWorkT` | 18 | 蒸汽清洁默认 18 分钟 |
+
+`WorkState=3` 尚未观察到，推测是暂停/预约等待，后续补充。
