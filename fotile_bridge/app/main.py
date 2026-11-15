@@ -7,6 +7,7 @@ import os
 
 from .cloud import CloudServer
 from .cloud_mirror import CloudMirror
+from .relay import MqttRelay
 from .config import load_config
 from .mqtt_bridge import MqttBridge
 from .profile import ProfileStore
@@ -35,15 +36,23 @@ async def run() -> None:
     mirror = CloudMirror(cfg, bridge.publish)
     bridge.mirror = mirror
 
+    relay = MqttRelay(cfg, bridge.publish) if cfg.relay_enabled else None
+
     try:
         bridge.start()
     except Exception as exc:  # noqa: BLE001
         LOG.error("MQTT bridge failed to start: %s", exc)
 
-    try:
-        mirror.start()
-    except Exception as exc:  # noqa: BLE001
-        LOG.error("cloud mirror failed to start: %s", exc)
+    if relay is not None:
+        try:
+            await relay.start()
+        except Exception as exc:  # noqa: BLE001
+            LOG.error("mqtt relay failed to start: %s", exc)
+    else:
+        try:
+            mirror.start()
+        except Exception as exc:  # noqa: BLE001
+            LOG.error("cloud mirror failed to start: %s", exc)
 
     LOG.info("fotile bridge ready")
     await asyncio.Event().wait()

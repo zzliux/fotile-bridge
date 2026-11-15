@@ -26,6 +26,10 @@ class Config:
     mirror_device_id: str = ""
     mirror_product_id: str = "1032A"
     mirror_password: str = ""
+    # MQTT 透明中转
+    relay_enabled: bool = False
+    relay_port: int = 1886
+    relay_upstream: str = "121.41.80.81"
 
 
 def load_config(path: str = "/data/options.json") -> Config:
@@ -52,5 +56,8 @@ def load_config(path: str = "/data/options.json") -> Config:
         mirror_device_id=str(raw.get("mirror_device_id") or ""),
         mirror_product_id=str(raw.get("mirror_product_id") or "1032A"),
         mirror_password=str(raw.get("mirror_password") or ""),
+        relay_enabled=bool(raw.get("relay_enabled", False)),
+        relay_port=int(raw.get("relay_port", 1886)),
+        relay_upstream=str(raw.get("relay_upstream") or "121.41.80.81"),
     )
     return cfg
