@@ -184,3 +184,17 @@ def test_hhmm_day_template():
     d = Discovery(lambda *a: None)
     t = d._template(Field(key="SetAppointmentTime", decode="hhmm_day"))
     assert "// 24" in t and "明天" in t and "未设置" in t
+
+
+def test_storage_param_used_at_start():
+    from types import SimpleNamespace
+    bridge = make_bridge()
+    bridge._on_message(None, None, SimpleNamespace(
+        topic="fotile/1032A/1149539722/param",
+        payload=b'{"StoreTotalTime": 42}',
+    ))
+    bridge._programs["1149539722"] = "超净洗"
+    bridge._handle_command("fotile/1032A/1149539722/set", {"start_program": 1})
+    payload = json.loads(bridge.client.sent[-1][1])
+    assert payload["StoreTotalTime"] == 42
+    assert payload["WorkMode"] == 2

@@ -26,6 +26,7 @@ class MqttBridge:
         self.client = None
         self._state = {}  # (product, device) -> 合并后的状态
         self._programs = {}  # device_id -> 选中的程序名
+        self._params = {}  # device_id -> {字段: 值}，启动时带上
         self.mirror = None
 
     # ---- paho ----
@@ -47,6 +48,7 @@ class MqttBridge:
         client.subscribe("fotile/+/+/set")
         client.subscribe("fotile/+/+/raw")
         client.subscribe("fotile/+/+/program")
+        client.subscribe("fotile/+/+/param")
         LOG.info("subscribed sync/#, fotile/state/#, fotile/+/+/set")
 
     def publish(self, topic: str, payload: str, retain: bool = False) -> None:
@@ -85,6 +87,11 @@ class MqttBridge:
             self._handle_sync(topic, payload)
         elif topic.startswith("fotile/state/"):
             self._handle_retained_state(topic, payload)
+        elif topic.startswith("fotile/") and topic.endswith("/param"):
+            parts = topic.split("/")
+            if len(parts) == 4 and isinstance(payload, dict):
+                self._params.setdefault(parts[2], {}).update(payload)
+                LOG.info("param set for %s: %s", parts[2], payload)
         elif topic.startswith("fotile/") and topic.endswith("/program"):
             parts = topic.split("/")
             if len(parts) == 4:
@@ -164,11 +171,15 @@ class MqttBridge:
             if not spec:
                 LOG.warning("unknown program %s for %s", name, device_id)
                 return
+            params = self._params.get(device_id, {})
+            store = params.get("StoreTotalTime")
+            if store is None:
+                store = self._state.get((profile.product_id, device_id), {}).get("StoreTotalTime", 10)
             body = {
                 "WorkMode": int(spec.get("WorkMode", 0)),
                 "WorkState": 1,
                 "AddFunL": int(spec.get("AddFunL", 1)),
-                "StoreTotalTime": int(self._state.get((profile.product_id, device_id), {}).get("StoreTotalTime", 10)) if spec.get("store") else 0,
+                "StoreTotalTime": int(store) if spec.get("store") else 0,
                 "PowerSwitchAll": 1,
             }
             self.publish(control_topic, json.dumps(body), False)

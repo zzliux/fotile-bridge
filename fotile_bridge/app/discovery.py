@@ -230,6 +230,18 @@ class Discovery:
             }
             if control.get("icon"):
                 base["icon"] = control["icon"]
+            if control.get("param"):
+                base.pop("state_topic", None)
+                base.pop("value_template", None)
+                base["command_topic"] = f"fotile/{product_id}/{device_id}/param"
+                base["command_template"] = '{"' + field + '": {{ value }}}'
+                base["min"] = control.get("min", 0)
+                base["max"] = control.get("max", 100)
+                base["step"] = control.get("step", 1)
+                if control.get("unit"):
+                    base["unit_of_measurement"] = control["unit"]
+                self.publish(f"homeassistant/number/{node}/config", json.dumps(base, ensure_ascii=False), True)
+                continue
             if kind == "switch":
                 base["payload_on"] = json.dumps({field: control.get("on", 1)})
                 base["payload_off"] = json.dumps({field: control.get("off", 0)})

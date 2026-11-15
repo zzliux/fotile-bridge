@@ -276,7 +276,8 @@
       "max": 99,
       "unit": "d",
       "icon": "mdi:calendar-range",
-      "note": "1-99天；部分程序不支持存储，启动时会发0"
+      "note": "1-99天；部分程序不支持存储，启动时会发0",
+      "param": true
     }
   ],
   "programs": {
