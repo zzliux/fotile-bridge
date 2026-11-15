@@ -1,117 +1,255 @@
 # Fotile Bridge
 
-把方太（Fotile）智能家电接进 Home Assistant 的桥接服务。设备仍然正常连方太云（App 在线可用），
-HA 通过中转旁听状态、经云端下发控制。
+把方太（Fotile）智能家电接进 Home Assistant 的桥接服务。
 
-- **设备侧无感**：设备照常连 `api.fotile.com` 和云端 MQTT，App 在线、可控
-- **HA 侧可控**：旁路由把设备的 MQTT 1883 转到本服务，本服务转发到真实云端并旁听/注入
-- **不需要抓凭据**：设备会话、密码轮换全由设备自己维护
-- HA 通过标准 MQTT 集成接入，实体用 MQTT Discovery 自动生成
+设备仍然正常连方太云（**App 在线、可控**），HA 通过一台旁路由把设备的 MQTT 流量引到本服务：
+本服务再转发到真实云端，同时旁听状态、把 HA 的控制经云端下发。
 
-## 架构
+> 适合“既想用官方 App，又想接 HA”的场景。设备固件把远程控制绑定在云端会话上，
+> 所以不能简单把设备劫持到本地 broker（会丢授权、App 离线），中转是折中且稳定的做法。
+
+## 能力
+
+- **App 无感**：设备照常连 `api.fotile.com` 与云端 MQTT，App 显示在线、可控制
+- **HA 可控**：电源、碗碟程序、开始/继续、暂停、取消、排水
+- **HA 可看**：剩余时间、工作状态、运行状态、门锁、故障码、提醒、保洁存储
+- **不抓凭据**：设备 CONNECT 的账号密码每次连接都会轮换，中转直接透传，不保存
+- **零代码适配新型号**：没有 profile 的型号也会按 `sync` 字段自动生成传感器
+
+## 架构与流量走向
 
 ```
-方太设备 ──1883──▶ 旁路由 DNAT ──▶ HA:1886 中转 ──▶ 真实云 broker
-                                      │
-                                      ├─ 旁听 sync → 本地 broker → HA 实体
-                                      └─ HA control → 经云端下发给设备
+                        ┌────────────── 主路由 ──────────────┐
+  方太设备 ──Wi-Fi────▶ │ PBR: 按设备 MAC 打标，流量走旁路由  │
+                        └────────────────┬────────────────────┘
+                                         ▼
+                        ┌────────────── 旁路由 ──────────────┐
+                        │ nftables DNAT: 设备:1883 → HA:1886  │
+                        └────────────────┬────────────────────┘
+                                         ▼
+                        ┌────────────── HA ───────────────────┐
+                        │ Fotile Bridge (add-on)              │
+                        │   :1886 中转 ──▶ 真实云 broker       │
+                        │     ├─ 旁听 sync → 本地 :1885 → HA  │
+                        │     └─ HA control → 云端 → 设备      │
+                        └─────────────────────────────────────┘
 ```
 
-- 设备 CONNECT/密码/会话由设备自己维护，中转不碰凭据
-- 云端视角设备一直在线，App 正常
-- HA 控制通过云端下发（复用设备自己的登录态），不依赖 TCP 注入
+三条路径：
 
-## 快速开始（HAOS）
-
-1. 把本仓库添加为 HA Add-on 仓库：设置 → 加载项 → 仓库 → 添加 `https://github.com/<you>/fotile-bridge`
-2. 安装 **Fotile Bridge**，配置本机 IP 和 HA MQTT 账号后启动
-3. 旁路由上做两件事：
-   - DNS：`api.fotile.com` → HA 的 IP
-   - DNAT：设备访问 `api.fotile.com:80` → `HA:8088`
-4. 给设备断电重连，HA 里会自动出现实体
-
-## 配置
-
-| 选项 | 说明 |
+| 路径 | 走向 |
 |---|---|
-| `http_port` | 最小云 HTTP 端口，默认 8088 |
-| `mqtt_port` | 设备接入的 MQTT 端口，默认 1883 |
-| `advertise_host` | `routeService` 返回给设备的 IP（HA 的局域网 IP） |
-| `upstream_ip` | 真实方太云 IP，用于 `learn` 模式透传（默认 `101.37.40.179`） |
-| `learn_mode` | 开启时未知请求/TSL 会透传到真实云并缓存 |
-| `ha_mqtt_host/user/password` | 桥接到 HA 现有 broker（留空则不桥接） |
+| 设备上报 | 设备 → 旁路由 → HA:1886 → 云 broker（中转同时把 `sync` 复制到本地 broker，供 HA 实体使用） |
+| App 控制 | App → 方太云 → 云 broker → HA:1886 → 设备（中转原样转发，App 照常工作） |
+| HA 控制 | HA MQTT → 本地 broker → 中转 → 云 broker → 设备（复用设备自己的云端会话下发） |
 
-## 控制
+## 前置条件
 
-状态：设备向 `sync/{productId}/{deviceId}` 发 JSON，HA 直接订阅。
+- HAOS（或 Supervised），已安装并启用 **Mosquitto broker** 加载项与 **MQTT** 集成
+- 一台可以改路由/DNAT 的路由器，或者一台旁路由（OpenWrt / ImmortalWrt 均可）
+- 设备已经用官方 App 配好网、绑定账号
 
-控制：HA 向 `fotile/{productId}/{deviceId}/set` 发命令，桥接服务按 `profiles/<productId>.json`
-里的 `commands` 映射成设备认识的 `control/...` 报文；没有映射时可用 `raw` 直接发 JSON：
+## 配置项从哪来
+
+add-on 的“配置”页所有字段如下，逐项说明取值来源：
+
+| 配置项 | 取值来源 | 示例 |
+|---|---|---|
+| `advertise_host` | HA 的局域网 IP。设置 → 系统 → 网络，或路由器 DHCP 列表里 HA 的地址 | `192.168.31.150` |
+| `mqtt_port` | HA 上**空闲**端口，给设备用的本地 broker。避开 1883（Mosquitto） | `1885` |
+| `http_port` | 历史“本地最小云”端口，中转模式下用不到，保持默认即可 | `8088` |
+| `ha_mqtt_host` | HA 的局域网 IP（Mosquitto 加载项监听在 1883） | `192.168.31.150` |
+| `ha_mqtt_port` | Mosquitto 端口 | `1883` |
+| `ha_mqtt_user` | 在 Mosquitto 加载项 → 配置 → `logins` 里新增的账号 | `fotile` |
+| `ha_mqtt_password` | 同上，`logins` 里对应的密码 | `fotile123` |
+| `relay_enabled` | 中转模式开关，填 `true` | `true` |
+| `relay_port` | 中转监听端口，选 HA 上空闲的 | `1886` |
+| `relay_upstream` | 方太云 MQTT broker 的 IP。可从旁路由抓设备 CONNECT 得到，或用已知入口 | `121.41.80.81` |
+| `upstream_ip` | `api.fotile.com` 的解析结果（`dig +short api.fotile.com`），仅 learn 模式用 | `101.37.40.179` |
+| `learn_mode` | 是否允许把未知 HTTP 请求透传真实云并缓存 TSL | `true` |
+| `show_experimental` | 是否显示未验证实体（预约时间、原始值输入等） | `false` |
+
+已知可用的云端 broker 入口：`121.41.80.81`、`120.26.51.72`、`47.97.27.44`（云端会轮换，连不上就换一个）。
+
+### Mosquitto 账号怎么建
+
+设置 → 加载项 → **Mosquitto broker** → 配置，在 `logins` 列表里加一条（保留原有）：
 
 ```yaml
-topic: fotile/1032A/1149539722/set
-payload: '{"raw": {"PowerSwitchAll": 2}}'
+logins:
+  - username: "fotile"
+    password: "fotile123"
 ```
 
-> 各型号的控制报文格式不同，抓一次 App 下发即可补进 profile，之后长期有效。
+保存并重启 Mosquitto，然后把这个账号密码填进 add-on 的 `ha_mqtt_user` / `ha_mqtt_password`。
 
-## 目录
+## 部署步骤
+
+### 1. 安装 add-on
+
+设置 → 加载项 → 加载项商店 → 右上角 ⋮ → 仓库 → 添加：
 
 ```
-fotile_bridge/           # HA add-on（Dockerfile / config.yaml / app）
-  app/cloud.py           # 最小云 HTTP 端点 + TSL 透传缓存
-  app/mqtt_bridge.py     # 设备 broker + HA 桥接 + Discovery
-  app/profiles/          # 各型号物模型与命令映射
-tests/                   # 本地可跑的单元测试
-docs/                    # 抓包记录、协议说明
+https://github.com/zzliux/fotile-bridge
 ```
 
-## 已知限制
+安装 **Fotile Bridge**，先别启动。
 
-- 目前 profile 只覆盖洗碗机 `1032A`（字段来自实机抓包）
-- 控制指令映射待补（需要一次 App 下发抓包）
-- 设备固件升级后可能需要重新落一份 TSL
+### 2. 填写配置
 
-## License
+```yaml
+http_port: 8088
+mqtt_port: 1885
+advertise_host: "192.168.31.150"
+upstream_ip: "101.37.40.179"
+learn_mode: true
+ha_mqtt_host: "192.168.31.150"
+ha_mqtt_port: 1883
+ha_mqtt_user: "fotile"
+ha_mqtt_password: "fotile123"
+log_level: info
+mirror_enabled: false
+relay_enabled: true
+relay_port: 1886
+relay_upstream: "121.41.80.81"
+show_experimental: false
+```
 
-MIT
+保存 → 启动。日志应出现：
 
-## 本地开发
+```
+app.relay: mqtt relay listening on :1886
+app.relay: relay watching local control/#
+bridge connected to local broker :1885
+```
+
+### 3. 主路由：把设备流量指向旁路由
+
+不同路由器做法不同，目标是：**该设备访问非局域网地址时，网关变成旁路由**。
+
+OpenWrt 示例（按源 MAC 打标 + 策略路由）：
+
+```bash
+iptables -t mangle -N DEVICEPBR
+iptables -t mangle -A DEVICEPBR ! -d 192.168.31.0/24 -i br-lan \
+  -m mac --mac-source 44:0F:B4:E1:26:D6 -j MARK --set-xmark 0x100
+ip rule add fwmark 0x100 lookup 100
+ip route add default via 192.168.31.2 table 100
+```
+
+小米路由等带“设备分流/旁路由”界面的，直接在界面里把设备指到旁路由即可。
+
+### 4. 旁路由：DNAT 1883 到中转
+
+```bash
+scp deploy/side-router-relay.sh root@192.168.31.2:/tmp/
+ssh root@192.168.31.2 'sh /tmp/side-router-relay.sh apply'
+```
+
+规则（ImmortalWrt 24.x 用 nftables）：
+
+```
+table ip fotile_relay {
+  chain prerouting  { ip saddr 192.168.31.241 tcp dport 1883 dnat to 192.168.31.150:1886 }
+  chain postrouting { ip saddr 192.168.31.241 ip daddr 192.168.31.150 tcp dport 1886 masquerade }
+}
+```
+
+> 优先级必须是负数（脚本用 -101），否则会被 mihomo / fw4 的 dstnat 抢先。
+
+### 5. 设备重连 + 远程授权
+
+- 给设备断电重连，或从路由器踢一下 Wi-Fi，让 MQTT 走新的 DNAT 路径
+- **在设备面板上按一次“启动”**，完成远程控制授权（状态里会出现 `RemoteAuth=1`）
+- App 里确认设备在线，HA 里会自动出现实体
+
+### 6. 验证
+
+```bash
+# 旁路由：DNAT 是否命中（每个连接计 1 次）
+ssh root@192.168.31.2 'nft list table ip fotile_relay | grep counter'
+
+# add-on 日志关键字
+#   relay connection -> 121.41.80.81:1883
+#   captured device cloud credentials
+#   cloud control channel ready
+#   published control via cloud ...
+
+# HA：设置 → 设备与服务 → MQTT → 设备，出现「方太 ... <deviceId>」
+```
+
+## 实体
+
+| 类别 | 实体 |
+|---|---|
+| 控制 | 电源、碗碟程序（13 种）、启动所选程序、开始/继续、暂停、取消、排水 |
+| 监控 | 剩余时间、工作状态（中文）、运行状态、门锁、故障码、提醒、保洁存储(天) |
+| 默认隐藏 | 预约时间、工作模式/工作状态原始值（`show_experimental: true` 才显示） |
+
+### 控制报文（洗碗机 1032A 实测）
+
+| 动作 | 报文 |
+|---|---|
+| 开机 / 关机 | `{"PowerSwitchAll":1/0,"GSCPowerSwitch":1/0}` |
+| 开始/继续 | `{"WorkState":1}` |
+| 暂停 | `{"WorkState":2}` |
+| 取消 | `{"WorkState":0}` |
+| 启动程序 | `{"WorkMode":N,"WorkState":1,"AddFunL":X,"StoreTotalTime":D,"PowerSwitchAll":1}` |
+| 排水 | 先 `{"PowerSwitchAll":0,"GSCPowerSwitch":0}`，2 秒后 `{"AutoDrain":1}` |
+
+程序映射：日常洗 0、超快洗 1、超净洗 2、晶亮洗 3、自清洁 4、节能洗 5、智能洗 6、
+预冲洗 128、母婴洗 129、静音洗 130、蒸汽消杀 132、独立烘干 133、餐前暖碟 136。
+谷电洗（135）走预约流程，暂未实现。
+
+## 排错
+
+| 现象 | 原因 | 处理 |
+|---|---|---|
+| App 显示离线 | 设备没走中转 / 中转连不上上游 | 看 `relay connection` 与 `relay upstream failed` 日志，换 `relay_upstream` |
+| App 在线但控制无效 | 设备未完成远程授权 | 在面板按一次“启动”，确认 `RemoteAuth=1` |
+| HA 有实体但状态未知 | 设备还没上报，或 `sync` 没到本地 | 看日志 `injected`/本地 broker 是否收到 `sync`，触发一次设备状态变化 |
+| `No file descriptors available` | 旧版本中转自环 | 升级到 0.4.2+ |
+| 中转日志 `Connection Refused` | 本地桥接账号错 | 检查 `ha_mqtt_user/password`（桥接认证用 `remote_username`） |
+| DNAT 不生效 | mihomo / fw4 抢先 | nft 规则优先级用 -101 |
+
+## 开发
 
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r requirements-dev.txt
 .venv/bin/python -m pytest -q
 
-# 不装 add-on 也能单独跑最小云（默认 :8088）
-FOTILE_HTTP_PORT=8088 FOTILE_DATA_DIR=./data \
-  .venv/bin/python -m app.main
+# 本地跑（不装 add-on）
+FOTILE_HTTP_PORT=8088 FOTILE_DATA_DIR=./data .venv/bin/python -m app.main
 ```
 
-最小云会自己探测局域网 IP 作为 `advertise_host`；设备接入前确认路由器 DNS/DNAT 已指向这台机器。
+目录：
 
-## 路线图
+```
+fotile_bridge/            # HA add-on
+  app/relay.py            # MQTT 中转（旁听 + 云端控制通道）
+  app/mqtt_bridge.py      # 本地 broker 接入 + HA Discovery + 命令映射
+  app/discovery.py        # MQTT Discovery
+  app/profiles/           # 各型号字段、程序、控制映射
+  app/tsl_seed/           # 物模型样本（learn 模式用）
+deploy/                   # 旁路由脚本
+docs/                     # 协议与踩坑记录
+tools/                    # pcap 分析、桥接自检
+```
 
-- [x] 最小云：login / access / routeService / tsl 缓存
-- [x] 设备 MQTT 接入 + HA Discovery（状态字段）
-- [x] 抓一次 App 控制下发，补齐 `control/` 命令映射（开关机已实测）
-- [ ] TSL 自动学习（learn 模式已验证透传路径）
-- [ ] 支持更多方太品类（烟机/烤箱/蒸箱），按 productId 加 profile
+## 已知限制
 
-## 新增型号（通用化设计）
+- 控制依赖云端：断外网时 App 与 HA 控制都不可用（这是“App 可用”的代价）
+- 只在洗碗机 `JBSD2T-02-M6Max`（productId `1032A`）上实测
+- 云端 broker 会轮换入口，必要时手动换 `relay_upstream`
+- 谷电洗（预约启动）未实现
 
-项目**不按型号写死逻辑**，所有差异都收在 `profiles/<productId>.json` 里：
+## 新增型号
 
-1. **零配置先跑起来**：没有 profile 的型号，通用 Discovery 会把 `sync` 报文里的每个字段按名字自动生成传感器（`mdi:gauge`），保证先能看到数据、能监控。
-2. **想变好看**：复制 `profiles/1032A.json`，改 `productId`、`model`，给字段补中文名/单位/图标/`binary_sensor` 类型。
-3. **控制**：抓一次 App 下发的 `control/{pid}/{did}` 报文，写进 `commands`（参考 `power` 的写法）；状态回读直接复用 `sync`。
-4. **字段多出来也不怕**：profile 里没声明的字段仍会自动补成传感器。
+1. 先用通用 Discovery 跑起来：没有 profile 的型号会按字段名自动生成传感器
+2. 复制 `app/profiles/1032A.json`，改 `productId`/`model`，补字段中文名、单位、程序映射
+3. 控制报文差异写进 `commands`/`programs`，不需要改代码
 
-目前已适配：
+## License
 
-| productId | 型号 | 说明 |
-|---|---|---|
-| `1032A` | JBSD2T-02-M6Max | 洗碗机，状态/开关机已实测 |
-
-> 不同型号的字段集合可能不同，但 `sync` 是自描述 JSON，通用 Discovery 能兜住；
-> 控制报文差异用 profile 的 `commands` 表达，不需要改代码。
+MIT
