@@ -238,6 +238,7 @@ class Discovery:
                 base["min"] = control.get("min", 0)
                 base["max"] = control.get("max", 100)
                 base["step"] = control.get("step", 1)
+                base["mode"] = "box"
                 if control.get("unit"):
                     base["unit_of_measurement"] = control["unit"]
                 self.publish(f"homeassistant/number/{node}/config", json.dumps(base, ensure_ascii=False), True)
@@ -266,6 +267,7 @@ class Discovery:
                 base["min"] = control.get("min", 0)
                 base["max"] = control.get("max", 100)
                 base["step"] = control.get("step", 1)
+                base["mode"] = "box"
                 if control.get("unit"):
                     base["unit_of_measurement"] = control["unit"]
                 topic = f"homeassistant/number/{node}/config"
@@ -318,6 +320,7 @@ class Discovery:
             "min": 0,
             "max": 1440,
             "step": 1,
+            "mode": "box",
             "unit_of_measurement": "min",
             "icon": "mdi:clock-outline",
             "state_topic": state_topic,
