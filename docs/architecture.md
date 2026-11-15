@@ -88,3 +88,20 @@ PUBLISH（设备 → 云），主题 `sync/1032A/1149539722`：
 - `control/...` 的下发报文格式（需要一次 App 控制抓包）
 - 各状态字段的取值枚举（如 `WorkState`、`WorkMode`、`PowerSwitchAll`）
 - 是否可用 `networkAuthSetting` 直接走官方局域网控制，省掉本地最小云
+
+## 社区调研（2026-11）
+
+结论：**目前没有任何公开项目解析过方太洗碗机的报文**，这份文档里的字段是从实机抓包得到的。
+
+| 来源 | 结论 |
+|---|---|
+| [kaattz/ha-fotile](https://github.com/kaattz/ha-fotile) | 只做油烟机；TSL 硬编码为烟机型号，无 `1032A`、无 `ClRemTime`，不能直接复用 |
+| 瀚思彼岸「方太幸福家接入ha」帖（2024–2025） | 多人求方案，无人公开成功；有人提到 `iot.fotile.com` |
+| `grep.app` / `searchcode` / GitHub 代码搜索 | 没有 `ClRemTime`、`1032A` 的公开代码命中 |
+| [iot.fotile.com](https://iot.fotile.com/) | 方太开放云平台的管理控制台（Vue SPA），后端是 `api.fotile.com/iot-open-admin`，有 `/product/bind/tsl`、`/tsl/import`、`/queryLogs/mqtt` 等接口，但需要服务商/管理员账号，个人不可用 |
+
+因此本项目自己维护 `profiles/<productId>.json`，字段语义按以下方式确定：
+
+1. 抓包得到完整状态 JSON（字段名即语义，值为枚举/数值）
+2. 观察状态迁移（如一轮洗涤的 `WorkState`/`RunState` 变化）确定枚举含义
+3. 控制报文格式通过抓一次 App 下发的 `control/...` 得到
