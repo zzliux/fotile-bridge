@@ -111,7 +111,7 @@ def test_hidden_entities_are_not_published_and_old_ones_cleared():
     bridge = make_bridge()
     bridge._handle_sync("sync/1032A/1149539722", {"WorkMode": 0, "WorkState": 0})
     sent = bridge.client.sent
-    assert not any("_text_" in t for t, _, _ in sent)
+    assert not any("_text_" in t and p for t, p, _ in sent)
     cleared = [t for t, p, retain in sent if p == "" and retain and t.endswith("/config")]
     assert any(t.endswith("_text_WorkMode/config") for t in cleared)
     assert any(t.endswith("_appointment/config") for t in cleared)
