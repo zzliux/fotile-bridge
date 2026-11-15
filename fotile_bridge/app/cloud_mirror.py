@@ -23,6 +23,7 @@ class CloudMirror:
         self.cfg = cfg
         self.local_publish = local_publish
         self.client = None
+        self.local_client = None
         self.device_id = cfg.mirror_device_id
         self.product_id = cfg.mirror_product_id.upper()
         self.state_topic = f"sync/{self.product_id}/{self.device_id}"
@@ -49,14 +50,19 @@ class CloudMirror:
         client.connect(self.cfg.mirror_broker, self.cfg.mirror_broker_port, keepalive=90)
         client.loop_start()
         self.client = client
+
+        # 本地控制 → 云端
+        local = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id="fotile_bridge_ctl")
+        local.on_connect = self._on_local_connect
+        local.on_message = self._on_local_message
+        local.connect("127.0.0.1", self.cfg.mqtt_port, keepalive=30)
+        local.loop_start()
+        self.local_client = local
+
         LOG.info("cloud mirror connected to %s:%s as %s", self.cfg.mirror_broker, self.cfg.mirror_broker_port, self.device_id)
 
     def _on_connect(self, client, userdata, flags, reason_code, properties=None):
-        topics = [
-            f"control/{self.product_id}/{self.device_id}",
-            f"service/{self.product_id}/{self.device_id}",
-            f"CustomEvent/{self.device_id}",
-        ]
+        topics = [f"sync/{self.product_id}/{self.device_id}"]
         client.subscribe([(t, 1) for t in topics])
         LOG.info("cloud mirror subscribed %s", topics)
 
@@ -64,13 +70,22 @@ class CloudMirror:
         LOG.warning("cloud mirror disconnected: %s", reason_code)
 
     def _on_message(self, client, userdata, msg):
-        # 云端 → 本地：App 的控制指令
+        # 云端 → 本地：设备状态，注入本地 broker 后由 bridge 做 discovery/retain
         try:
             payload = msg.payload.decode("utf-8")
         except UnicodeDecodeError:
             return
         self.local_publish(msg.topic, payload, False)
-        LOG.info("cloud -> local %s %s", msg.topic, payload[:120])
+
+    def _on_local_connect(self, client, userdata, flags, reason_code, properties=None):
+        client.subscribe(f"control/{self.product_id}/{self.device_id}", qos=1)
+        LOG.info("cloud mirror watching local control topic")
+
+    def _on_local_message(self, client, userdata, msg):
+        # 本地控制 → 云端（App/HA 都通过云端下发，设备才会执行）
+        if self.client is not None:
+            self.client.publish(msg.topic, msg.payload, qos=1)
+            LOG.info("local control -> cloud %s", msg.topic)
 
     def publish_state(self, product_id: str, device_id: str, state: dict) -> None:
         if not self.enabled or self.client is None:
