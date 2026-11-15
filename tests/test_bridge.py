@@ -120,9 +120,7 @@ def test_sequence_command(monkeypatch):
     monkeypatch.setattr("app.mqtt_bridge.time.sleep", lambda *_: None)
     bridge._handle_command("fotile/1032A/1149539722/set", {"daily_wash": 1})
     sent = [json.loads(p) for t, p, _ in bridge.client.sent if t == "control/1032A/1149539722"]
-    assert sent[0]["WorkMode"] == 0
-    assert sent[0]["WorkState"] == 1
-    assert sent[-1] == {"WorkState": 2}
+    assert sent == [{"WorkMode": 0, "WorkState": 1, "AddFunL": 1, "StoreTotalTime": 10, "PowerSwitchAll": 1}]
 
 
 def test_button_discovery_for_commands():
