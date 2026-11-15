@@ -107,28 +107,29 @@ def test_appointment_command():
     assert json.loads(payload) == {"SetAppointmentTime": 45}
 
 
-def test_generic_controls_discovery():
+def test_text_controls_are_hidden_by_default():
     bridge = make_bridge()
-    bridge._handle_sync("sync/1032A/1149539722", {"GSCPowerSwitch": 0, "StoreTotalTime": 7})
-    topics = [t for t, _, _ in bridge.client.sent]
-    assert any("_GSCPowerSwitch_switch/config" in t for t in topics)
-    assert any("_StoreTotalTime_number/config" in t for t in topics)
+    bridge._handle_sync("sync/1032A/1149539722", {"WorkMode": 0, "WorkState": 0})
+    configs = {t: p for t, p, _ in bridge.client.sent if "_text_" in t and t.endswith("/config")}
+    assert configs
+    for payload in configs.values():
+        assert json.loads(payload)["enabled_by_default"] is False
 
 
-def test_sequence_command(monkeypatch):
+def test_start_command():
     bridge = make_bridge()
-    monkeypatch.setattr("app.mqtt_bridge.time.sleep", lambda *_: None)
-    bridge._handle_command("fotile/1032A/1149539722/set", {"daily_wash": 1})
-    sent = [json.loads(p) for t, p, _ in bridge.client.sent if t == "control/1032A/1149539722"]
-    assert sent == [{"WorkMode": 0, "WorkState": 1, "AddFunL": 1, "StoreTotalTime": 10, "PowerSwitchAll": 1}]
+    bridge._handle_command("fotile/1032A/1149539722/set", {"start": 1})
+    topic, payload, _ = bridge.client.sent[-1]
+    assert json.loads(payload) == {"WorkState": 1}
 
 
 def test_button_discovery_for_commands():
     bridge = make_bridge()
     bridge._handle_sync("sync/1032A/1149539722", {"WorkState": 0})
     topics = [t for t, _, _ in bridge.client.sent]
-    assert any("_btn_daily_wash/config" in t for t in topics)
+    assert any("_btn_start/config" in t for t in topics)
     assert any("_btn_pause/config" in t for t in topics)
+    assert any("_btn_start_program/config" in t for t in topics)
 
 
 def test_program_select_and_start():

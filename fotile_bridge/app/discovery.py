@@ -37,6 +37,7 @@ class Discovery:
             model=profile.model,
             controls=profile.controls,
             programs=profile.programs,
+            text_controls=profile.text_controls,
         )
 
     def ensure_generic(self, product_id: str, device_id: str, state: Dict[str, object]) -> None:
@@ -50,6 +51,7 @@ class Discovery:
             model="",
             controls=[],
             programs={},
+            text_controls=[],
         )
 
     # ---- 内部 ----
@@ -65,6 +67,7 @@ class Discovery:
         model: str,
         controls: List[dict],
         programs: Dict[str, int],
+        text_controls: List[dict],
     ) -> None:
         key = f"{product_id}:{device_id}"
         if key in self._done:
@@ -105,6 +108,7 @@ class Discovery:
         if "drain" in commands:
             self._publish_drain_button(device, product_id, device_id)
         self._publish_controls(device, state_topic, product_id, device_id, controls)
+        self._publish_text_controls(device, state_topic, product_id, device_id, text_controls)
         if programs:
             node = f"fotile_{product_id}_{device_id}_program"
             payload = {
@@ -222,6 +226,26 @@ class Discovery:
                     base["unit_of_measurement"] = control["unit"]
                 topic = f"homeassistant/number/{node}/config"
             self.publish(topic, json.dumps(base, ensure_ascii=False), True)
+
+    def _publish_text_controls(self, device: dict, state_topic: str, product_id: str, device_id: str, text_controls: list) -> None:
+        for item in text_controls:
+            field = item.get("field")
+            if not field:
+                continue
+            node = f"fotile_{product_id}_{device_id}_text_{field}"
+            payload = {
+                "name": item.get("name", field),
+                "unique_id": node,
+                "object_id": node,
+                "command_topic": f"fotile/{product_id}/{device_id}/set",
+                "command_template": '{"' + field + '": {{ value | int }}}',
+                "state_topic": state_topic,
+                "value_template": f"{{{{ value_json.{field} }}}}",
+                "enabled_by_default": False,
+                "icon": item.get("icon", "mdi:form-textbox"),
+                "device": device,
+            }
+            self.publish(f"homeassistant/text/{node}/config", json.dumps(payload, ensure_ascii=False), True)
 
     def _publish_appointment(self, device: dict, state_topic: str, product_id: str, device_id: str) -> None:
         node = f"fotile_{product_id}_{device_id}_appointment"

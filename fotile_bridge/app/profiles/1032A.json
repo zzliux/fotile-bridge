@@ -39,11 +39,10 @@
       "enabled": false
     },
     "StoreTotalTime": {
-      "name": "存储总时间",
-      "unit": "h",
+      "name": "保洁存储(天)",
+      "unit": "d",
       "device_class": "duration",
-      "icon": "mdi:timer-outline",
-      "enabled": false
+      "icon": "mdi:calendar-range"
     },
     "SetAppointmentTime": {
       "name": "预约时间",
@@ -53,7 +52,8 @@
     },
     "SoftensaltLevel": {
       "name": "软水盐档位",
-      "icon": "mdi:shaker-outline"
+      "icon": "mdi:shaker-outline",
+      "enabled": false
     },
     "DoorLockSta": {
       "name": "门锁（1=已上锁）",
@@ -206,20 +206,6 @@
     "drain": {
       "experimental": true
     },
-    "daily_wash": {
-      "button": {
-        "name": "日常洗并启动"
-      },
-      "sequence": [
-        {
-          "WorkMode": 0,
-          "WorkState": 1,
-          "AddFunL": 1,
-          "StoreTotalTime": 10,
-          "PowerSwitchAll": 1
-        }
-      ]
-    },
     "start": {
       "button": {
         "name": "开始/继续"
@@ -257,75 +243,7 @@
       "program": true
     }
   },
-  "controls": [
-    {
-      "type": "switch",
-      "name": "蒸汽清洁",
-      "field": "GSCPowerSwitch",
-      "on": 1,
-      "off": 0,
-      "icon": "mdi:weather-cloudy"
-    },
-    {
-      "type": "number",
-      "name": "蒸汽清洁时间(分钟)",
-      "field": "GSCSetWorkT",
-      "min": 1,
-      "max": 120,
-      "unit": "min",
-      "icon": "mdi:clock-digital"
-    },
-    {
-      "type": "number",
-      "name": "保洁存储(天)",
-      "field": "StoreTotalTime",
-      "min": 1,
-      "max": 99,
-      "unit": "d",
-      "icon": "mdi:timer-outline"
-    },
-    {
-      "type": "number",
-      "name": "软水盐档位",
-      "field": "SoftensaltLevel",
-      "min": 0,
-      "max": 10,
-      "icon": "mdi:shaker-outline"
-    },
-    {
-      "type": "number",
-      "name": "工作模式(原始值)",
-      "field": "WorkMode",
-      "min": 0,
-      "max": 200,
-      "icon": "mdi:dishwasher"
-    },
-    {
-      "type": "switch",
-      "name": "峰谷模式",
-      "field": "ValleyMode",
-      "on": 1,
-      "off": 0,
-      "icon": "mdi:transmission-tower"
-    },
-    {
-      "type": "number",
-      "name": "峰谷预约(分钟)",
-      "field": "ValleyAppoint",
-      "min": 0,
-      "max": 1440,
-      "unit": "min",
-      "icon": "mdi:calendar-clock"
-    },
-    {
-      "type": "number",
-      "name": "工作状态(原始值)",
-      "field": "WorkState",
-      "min": 0,
-      "max": 4,
-      "icon": "mdi:state-machine"
-    }
-  ],
+  "controls": [],
   "programs": {
     "日常洗": {
       "WorkMode": 0,
@@ -392,5 +310,15 @@
       "AddFunL": 1,
       "store": true
     }
-  }
+  },
+  "text_controls": [
+    {
+      "field": "WorkMode",
+      "name": "工作模式(原始值)"
+    },
+    {
+      "field": "WorkState",
+      "name": "工作状态(原始值)"
+    }
+  ]
 }
