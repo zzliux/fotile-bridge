@@ -1,43 +1,30 @@
-# Fotile Local Bridge
+# Fotile Bridge
 
-把方太（Fotile）智能家电从“厂商云”接管到本地 Home Assistant 的桥接服务。
+把方太（Fotile）智能家电接进 Home Assistant 的桥接服务。设备仍然正常连方太云（App 在线可用），
+HA 通过中转旁听状态、经云端下发控制。
 
-- 设备仍然以为自己连的是方太云：HTTP 走 `api.fotile.com:80`，MQTT 走 1883
-- 实际连的是旁路由 / HA 上的本服务：**不出网、断网可用、不需要 App 登录**
+- **设备侧无感**：设备照常连 `api.fotile.com` 和云端 MQTT，App 在线、可控
+- **HA 侧可控**：旁路由把设备的 MQTT 1883 转到本服务，本服务转发到真实云端并旁听/注入
+- **不需要抓凭据**：设备会话、密码轮换全由设备自己维护
 - HA 通过标准 MQTT 集成接入，实体用 MQTT Discovery 自动生成
-- 不依赖网易易盾、模拟器、抓包或账号风控
 
 ## 架构
 
-设备**不知道**自己被接管了：它仍然访问 `api.fotile.com`，由路由器做透明重定向。
-
 ```
-                     ┌──────────── 主路由 ────────────┐
- 方太设备 ──Wi-Fi──▶ │ PBR: 按 MAC 打标 → 走旁路由      │
-                     └───────────────┬────────────────┘
-                                     ▼
-                     ┌──────────── 旁路由 ────────────┐
-                     │ nftables DNAT: 设备:80 → HA:8088│
-                     └───────────────┬────────────────┘
-                                     ▼
-                     ┌──────────── HA ────────────────┐
-                     │ :8088 最小云  :1885 设备 broker │
-                     │ 桥接 → :1883 HA Mosquitto       │
-                     └────────────────────────────────┘
+方太设备 ──1883──▶ 旁路由 DNAT ──▶ HA:1886 中转 ──▶ 真实云 broker
+                                      │
+                                      ├─ 旁听 sync → 本地 broker → HA 实体
+                                      └─ HA control → 经云端下发给设备
 ```
 
-- **不改 DNS**：只有指定设备被重定向，手机 App 照常访问真实云
-- **不改设备**：设备仍然认为自己连的是方太云
-- 设备开机：`time_sync` → `new_device_login` → `routeService` → 连本地 MQTT
-- HA 侧：MQTT Discovery 自动生成实体（电源开关 + 状态传感器）
-- **MQTT 透明中转（当前方案）**：设备仍连真实云端，但 1883 经过 add-on 中转；中转旁听状态给 HA、把 HA 控制注入设备连接。App 在线、HA 可控、无需抓凭据（详见 [docs/deployment.md](docs/deployment.md) 第 10 节）
-
-完整步骤、验证命令、踩坑记录见 [docs/deployment.md](docs/deployment.md)。
+- 设备 CONNECT/密码/会话由设备自己维护，中转不碰凭据
+- 云端视角设备一直在线，App 正常
+- HA 控制通过云端下发（复用设备自己的登录态），不依赖 TCP 注入
 
 ## 快速开始（HAOS）
 
-1. 把本仓库添加为 HA Add-on 仓库：设置 → 加载项 → 仓库 → 添加 `https://github.com/<you>/fotile-local-bridge`
-2. 安装 **Fotile Local Bridge**，配置本机 IP 和 HA MQTT 账号后启动
+1. 把本仓库添加为 HA Add-on 仓库：设置 → 加载项 → 仓库 → 添加 `https://github.com/<you>/fotile-bridge`
+2. 安装 **Fotile Bridge**，配置本机 IP 和 HA MQTT 账号后启动
 3. 旁路由上做两件事：
    - DNS：`api.fotile.com` → HA 的 IP
    - DNAT：设备访问 `api.fotile.com:80` → `HA:8088`

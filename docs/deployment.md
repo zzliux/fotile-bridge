@@ -29,7 +29,7 @@
                      └───────────────────┬───────────────────────────┘
                                          │
                      ┌───────────────────▼──── HA 192.168.31.150 ───┐
-                     │ add-on: Fotile Local Bridge                   │
+                     │ add-on: Fotile Bridge                   │
                      │   :8088 最小云（login/routeService/tsl）       │
                      │   :1885 mosquitto（设备接入）                  │
                      │   桥接 → :1883 HA Mosquitto（实体进 HA）        │
@@ -126,8 +126,8 @@ python3 tools/bridge_test.py
 
 ### 4.2 安装 add-on
 
-1. 设置 → 加载项 → 加载项商店 → 仓库 → 添加 `https://github.com/zzliux/fotile-local-bridge`
-2. 安装 **Fotile Local Bridge**
+1. 设置 → 加载项 → 加载项商店 → 仓库 → 添加 `https://github.com/zzliux/fotile-bridge`
+2. 安装 **Fotile Bridge**
 3. 配置：
 
 ```yaml
