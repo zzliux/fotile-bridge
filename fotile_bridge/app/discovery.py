@@ -262,6 +262,7 @@ class Discovery:
             "icon": "mdi:clock-outline",
             "state_topic": state_topic,
             "value_template": "{{ value_json.SetAppointmentTime }}",
+            "enabled_by_default": False,
             "device": device,
         }
         self.publish(f"homeassistant/number/{node}/config", json.dumps(payload, ensure_ascii=False), True)
@@ -275,6 +276,7 @@ class Discovery:
             "command_topic": f"fotile/{product_id}/{device_id}/set",
             "payload_press": '{"drain": 1}',
             "icon": "mdi:water-pump",
+            "enabled_by_default": False,
             "device": device,
         }
         self.publish(f"homeassistant/button/{node}/config", json.dumps(payload, ensure_ascii=False), True)
