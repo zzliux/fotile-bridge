@@ -85,6 +85,7 @@ class MqttRelay:
         self.server: Optional[asyncio.AbstractServer] = None
         self.device_writer: Optional[asyncio.StreamWriter] = None
         self._lock = asyncio.Lock()
+        self._active = 0
 
     async def start(self) -> None:
         self.server = await asyncio.start_server(self._handle, "0.0.0.0", self.cfg.relay_port)
@@ -109,18 +110,26 @@ class MqttRelay:
         fut.add_done_callback(lambda f: f.exception() and LOG.warning("inject failed: %s", f.exception()))
 
     async def _handle(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
-        sock = writer.get_extra_info("socket")
-        dst = original_dst(sock) if sock is not None else None
-        # 直连 relay 端口时 SO_ORIGINAL_DST 会指向自己，回退到配置的云端 broker
-        if dst and (dst[1] == self.cfg.relay_port or dst[0] in ("127.0.0.1", "0.0.0.0")):
-            dst = None
-        upstream_host, upstream_port = dst or (self.cfg.relay_upstream, 1883)
+        # nftables DNAT 下 SO_ORIGINAL_DST 不可靠（会指回自己），统一用配置的云端 broker
+        upstream_host, upstream_port = self.cfg.relay_upstream, 1883
+        if upstream_host in ("127.0.0.1", "0.0.0.0", self.cfg.advertise_host):
+            LOG.error("relay upstream misconfigured: %s", upstream_host)
+            writer.close()
+            return
         LOG.info("relay connection -> %s:%s", upstream_host, upstream_port)
+        if self._active >= 4:
+            LOG.warning("relay too many connections, dropping")
+            writer.close()
+            return
+        self._active += 1
         try:
-            up_reader, up_writer = await asyncio.open_connection(upstream_host, upstream_port)
-        except OSError as exc:
+            up_reader, up_writer = await asyncio.wait_for(
+                asyncio.open_connection(upstream_host, upstream_port), timeout=10
+            )
+        except (OSError, asyncio.TimeoutError) as exc:
             LOG.error("relay upstream failed: %s", exc)
             writer.close()
+            self._active -= 1
             return
 
         self.device_writer = writer
@@ -150,6 +159,7 @@ class MqttRelay:
         try:
             await asyncio.gather(dev_to_up(), up_to_dev())
         finally:
+            self._active = max(0, self._active - 1)
             self.device_writer = None
             for w in (writer, up_writer):
                 try:
