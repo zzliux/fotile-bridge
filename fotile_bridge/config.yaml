@@ -1,5 +1,5 @@
 name: Fotile Local Bridge
-version: "0.4.0"
+version: "0.4.1"
 slug: fotile_bridge
 description: 把方太智能家电从厂商云接管到本地 Home Assistant（HTTP 最小云 + 本地 MQTT）
 url: https://github.com/zzliux/fotile-local-bridge

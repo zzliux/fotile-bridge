@@ -111,6 +111,9 @@ class MqttRelay:
     async def _handle(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         sock = writer.get_extra_info("socket")
         dst = original_dst(sock) if sock is not None else None
+        # 直连 relay 端口时 SO_ORIGINAL_DST 会指向自己，回退到配置的云端 broker
+        if dst and (dst[1] == self.cfg.relay_port or dst[0] in ("127.0.0.1", "0.0.0.0")):
+            dst = None
         upstream_host, upstream_port = dst or (self.cfg.relay_upstream, 1883)
         LOG.info("relay connection -> %s:%s", upstream_host, upstream_port)
         try:
