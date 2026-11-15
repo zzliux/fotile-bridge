@@ -188,6 +188,11 @@ class MqttBridge:
             known = {f.key for f in profile.fields}
             if payload and all(k in known for k in payload):
                 self.publish(control_topic, json.dumps(payload), False)
+                # 同步更新本地缓存，紧接着启动程序时能用上新值
+                key = (profile.product_id, device_id)
+                merged = dict(self._state.get(key) or {})
+                merged.update(payload)
+                self._state[key] = merged
                 LOG.info("field command -> %s %s", control_topic, payload)
                 return
 

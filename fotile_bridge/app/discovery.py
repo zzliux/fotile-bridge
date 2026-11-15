@@ -270,6 +270,7 @@ class Discovery:
             f"homeassistant/button/{base}_drain/config",
             f"homeassistant/text/{base}_text_WorkMode/config",
             f"homeassistant/text/{base}_text_WorkState/config",
+            f"homeassistant/sensor/{base}_StoreTotalTime/config",
         ):
             self.publish(topic, "", True)
         self._cleaned.add(key)

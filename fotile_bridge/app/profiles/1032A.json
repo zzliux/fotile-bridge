@@ -44,7 +44,8 @@
       "name": "保洁存储(天)",
       "unit": "d",
       "device_class": "duration",
-      "icon": "mdi:calendar-range"
+      "icon": "mdi:calendar-range",
+      "enabled": false
     },
     "SetAppointmentTime": {
       "name": "预约启动",
@@ -266,7 +267,18 @@
       "program": true
     }
   },
-  "controls": [],
+  "controls": [
+    {
+      "type": "number",
+      "name": "保洁存储(天)",
+      "field": "StoreTotalTime",
+      "min": 1,
+      "max": 99,
+      "unit": "d",
+      "icon": "mdi:calendar-range",
+      "note": "1-99天；部分程序不支持存储，启动时会发0"
+    }
+  ],
   "programs": {
     "日常洗": {
       "WorkMode": 0,
