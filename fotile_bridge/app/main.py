@@ -24,6 +24,7 @@ async def run() -> None:
     here = os.path.dirname(os.path.abspath(__file__))
     profiles = ProfileStore(os.path.join(here, "profiles"))
     tsl = TslStore(cfg.data_dir)
+    tsl.seed_from(os.path.join(here, "tsl_seed"))
 
     cloud = CloudServer(cfg, tsl)
     await cloud.start()

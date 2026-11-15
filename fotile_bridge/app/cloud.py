@@ -64,6 +64,8 @@ class CloudServer:
         self.session: Optional[ClientSession] = None
         self.app = web.Application()
         r = self.app.router
+        r.add_post("/v5/time_sync/", self.time_sync)
+        r.add_post("/v2/time_sync", self.time_sync)
         r.add_post("/v2/new_device_login", self.new_device_login)
         r.add_post("/v3/device/access/new", self.access_new)
         r.add_route("*", "/iot-mqttManager/routeService", self.route_service)
@@ -92,21 +94,30 @@ class CloudServer:
 
     # ---- 设备接口 ----
 
+    async def time_sync(self, request: web.Request) -> web.Response:
+        now = _ms()
+        return web.json_response({
+            "timestampString": time.strftime("%Y%m%d%H%M%S", time.localtime()),
+            "timestampSeconds": now // 1000,
+            "timestampMs": now,
+        })
+
     async def new_device_login(self, request: web.Request) -> web.Response:
         data = await self.body_json(request)
         device_id = str(data.get("deviceId") or data.get("device_id") or "")
         now = _ms()
         token = secrets.token_hex(24)
         LOG.info("new_device_login device=%s -> %s:%s", device_id, self.host, self.cfg.mqtt_port)
+        # 字段与真实云端对齐：token 24h、refreshToken 约 45min、familyId 固定
         return web.json_response({
             "currentTimeStamp": now,
             "deviceId": device_id,
-            "familyId": "local",
+            "familyId": int(device_id) if device_id.isdigit() else 0,
             "refreshToken": token,
-            "refreshTokenTimeStamp": now,
-            "schemaVersion": "V001",
+            "refreshTokenTimeStamp": now + 2678400,
+            "schemaVersion": "V002-2026.1.21",
             "token": token,
-            "tokenTimeStamp": now,
+            "tokenTimeStamp": now + 86400000,
         })
 
     async def access_new(self, request: web.Request) -> web.Response:

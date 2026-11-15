@@ -24,6 +24,22 @@ class TslStore:
         except (OSError, ValueError):
             return None
 
+    def seed_from(self, directory: str) -> None:
+        """把随包附带的 TSL 样本复制进缓存（不覆盖已有文件）。"""
+        if not os.path.isdir(directory):
+            return
+        for name in os.listdir(directory):
+            if not name.endswith(".json"):
+                continue
+            product_id = name[:-5].upper()
+            if self.get(product_id) is not None:
+                continue
+            try:
+                with open(os.path.join(directory, name), encoding="utf-8") as f:
+                    self.put(product_id, json.load(f))
+            except (OSError, ValueError):
+                continue
+
     def put(self, product_id: str, data: dict) -> None:
         path = self._path(product_id)
         tmp = path + ".tmp"

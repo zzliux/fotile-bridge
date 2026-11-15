@@ -139,3 +139,34 @@ PUBLISH（设备 → 云），主题 `sync/1032A/1149539722`：
 | `GSCSetWorkT` | 18 | 蒸汽清洁默认 18 分钟 |
 
 `WorkState=3` 尚未观察到，推测是暂停/预约等待，后续补充。
+
+## 开机 HTTP 全流程（2026-11-15 断电重连实测）
+
+设备型号 `JBSD2T-02-M6Max`，固件 `FIKS-F9-WR026`，SDK `1.0.0`。
+
+| # | 请求 | 请求体 | 响应 |
+|---|---|---|---|
+| 1 | `POST /v5/time_sync/` | `{}` | `{"timestampString":"20261115141724","timestampSeconds":...,"timestampMs":...}` |
+| 2 | `POST /v2/new_device_login` | `{"deviceId":1149539722,"timeStamp":"...","authorizeCode":"4565...","firmware_version":"FIKS-F9-WR026","sdkVersion":"1.0.0"}` | `{"currentTimeStamp":...,"deviceId":"...","familyId":151073922,"refreshToken":"...","refreshTokenTimeStamp":...,"schemaVersion":"V002-2026.1.21","token":"...","tokenTimeStamp":...}`（370 字节） |
+| 3 | `POST /iot-mqttManager/routeService` | `{"bussinessType":1,"deviceId":1149539722,"requestType":1,"clientType":3}` | `[{"ip":"121.41.80.81","port":1883,"vendorId":"Fotile","clientId":"Fotile_DEV_1149539722","keepalived":30,"topics":[...]}]`（557 字节） |
+| 4 | `POST /v2/tsl/query/product` | `{"productId":"1032A","condensedVersion":1}` | TSL，1685 字节（含 30 个属性，见下） |
+
+请求头里的 `access-token`：time_sync 用固定值，login 不带 token，后续请求（routeService/tsl）带 login 返回的 token。
+token 有效期 24 小时，refreshToken 约 45 分钟，设备自己续期。
+
+TSL 关键信息（`fotile_bridge/app/tsl_seed/1032A.json`）：
+
+```json
+{"AL":[{"n":"PowerSwitchAll","c":{"o":5,"l":1,"b":3},"s":{"o":0,"l":1}}, ...],
+ "version":"V002-2026.1.21","dataType":0,"uploadFilter":1,
+ "c":{"pB":{"o":10,"l":3},"p":{"o":13,"l":25}},
+ "s":{"p":{"o":10,"l":49}}}
+```
+
+- `c` = 控制字段的位偏移（`o` 字节偏移、`l` 长度、`b` 位）
+- `s` = 状态字段的位偏移
+- 注意：**MQTT 上的控制报文是 JSON 键值**（如 `{"PowerSwitchAll":1,"GSCPowerSwitch":1}`），
+  TSL 的位域是云端和固件之间的打包格式，本地桥接不需要自己拼位域
+
+TSL 已随项目附带（`tsl_seed`），首次启动自动灌进缓存；没有样本的型号会在 learn 模式下
+透传真实云并自动落盘。

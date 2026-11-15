@@ -28,7 +28,16 @@ async def test_new_device_login(server):
     assert resp.status == 200
     assert data["deviceId"] == "1149539722"
     assert data["token"]
-    assert data["schemaVersion"] == "V001"
+    assert data["schemaVersion"].startswith("V002")
+
+
+@pytest.mark.asyncio
+async def test_time_sync(server):
+    async with TestClient(TestServer(server.app)) as client:
+        resp = await client.post("/v5/time_sync/", json={})
+        data = await resp.json()
+    assert data["timestampMs"] > 0
+    assert len(data["timestampString"]) == 14
 
 
 @pytest.mark.asyncio
@@ -40,6 +49,8 @@ async def test_route_service_points_to_local_broker(server):
     assert data[0]["port"] == 1883
     names = [t["name"] for t in data[0]["topics"]]
     assert "control/{product_id}/{device_id}" in names
+    assert data[0]["vendorId"] == "Fotile"
+    assert data[0]["keepalived"] == 30
 
 
 @pytest.mark.asyncio
