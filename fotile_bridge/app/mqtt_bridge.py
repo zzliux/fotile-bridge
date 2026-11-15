@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from typing import Optional
 
 from .config import Config
@@ -156,6 +157,15 @@ class MqttBridge:
         for name, value in payload.items():
             spec = profile.commands.get(name)
             if spec is None:
+                continue
+            if isinstance(spec, dict) and spec.get("sequence"):
+                seq = spec["sequence"]
+                delay = float(spec.get("delay_ms", 0)) / 1000.0
+                for idx, item in enumerate(seq):
+                    self.publish(control_topic, json.dumps(item), False)
+                    LOG.info("sequence %s step %s -> %s", name, idx + 1, item)
+                    if delay and idx < len(seq) - 1:
+                        time.sleep(delay)
                 continue
             options = spec.get("options") or {}
             body = options.get(str(value), spec.get("payload"))

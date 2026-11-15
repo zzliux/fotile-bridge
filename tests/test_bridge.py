@@ -113,3 +113,21 @@ def test_generic_controls_discovery():
     topics = [t for t, _, _ in bridge.client.sent]
     assert any("_GSCPowerSwitch_switch/config" in t for t in topics)
     assert any("_StoreTotalTime_number/config" in t for t in topics)
+
+
+def test_sequence_command(monkeypatch):
+    bridge = make_bridge()
+    monkeypatch.setattr("app.mqtt_bridge.time.sleep", lambda *_: None)
+    bridge._handle_command("fotile/1032A/1149539722/set", {"daily_wash": 1})
+    sent = [json.loads(p) for t, p, _ in bridge.client.sent if t == "control/1032A/1149539722"]
+    assert sent[0]["WorkMode"] == 0
+    assert sent[0]["WorkState"] == 1
+    assert sent[-1] == {"WorkState": 2}
+
+
+def test_button_discovery_for_commands():
+    bridge = make_bridge()
+    bridge._handle_sync("sync/1032A/1149539722", {"WorkState": 0})
+    topics = [t for t, _, _ in bridge.client.sent]
+    assert any("_btn_daily_wash/config" in t for t in topics)
+    assert any("_btn_pause/config" in t for t in topics)

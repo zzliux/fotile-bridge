@@ -205,6 +205,54 @@
     },
     "drain": {
       "experimental": true
+    },
+    "daily_wash": {
+      "button": {
+        "name": "日常洗并启动"
+      },
+      "delay_ms": 1500,
+      "sequence": [
+        {
+          "WorkMode": 0,
+          "WorkState": 1,
+          "AddFunL": 1,
+          "StoreTotalTime": 10,
+          "PowerSwitchAll": 1
+        },
+        {
+          "WorkState": 2
+        }
+      ]
+    },
+    "start": {
+      "button": {
+        "name": "开始/继续"
+      },
+      "sequence": [
+        {
+          "WorkState": 2
+        }
+      ]
+    },
+    "pause": {
+      "button": {
+        "name": "暂停"
+      },
+      "sequence": [
+        {
+          "WorkState": 0
+        }
+      ]
+    },
+    "stop": {
+      "button": {
+        "name": "取消"
+      },
+      "sequence": [
+        {
+          "WorkState": 0
+        }
+      ]
     }
   },
   "controls": [
@@ -266,6 +314,14 @@
       "max": 1440,
       "unit": "min",
       "icon": "mdi:calendar-clock"
+    },
+    {
+      "type": "number",
+      "name": "工作状态(原始值)",
+      "field": "WorkState",
+      "min": 0,
+      "max": 4,
+      "icon": "mdi:state-machine"
     }
   ]
 }

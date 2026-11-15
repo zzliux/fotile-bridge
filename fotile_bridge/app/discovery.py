@@ -102,6 +102,21 @@ class Discovery:
         if "drain" in commands:
             self._publish_drain_button(device, product_id, device_id)
         self._publish_controls(device, state_topic, product_id, device_id, controls)
+        for name, spec in commands.items():
+            if not isinstance(spec, dict) or "button" not in spec:
+                continue
+            btn = spec["button"] if isinstance(spec["button"], dict) else {}
+            node = f"fotile_{product_id}_{device_id}_btn_{name}"
+            payload = {
+                "name": btn.get("name", name),
+                "unique_id": node,
+                "object_id": node,
+                "command_topic": f"fotile/{product_id}/{device_id}/set",
+                "payload_press": json.dumps({name: 1}),
+                "icon": btn.get("icon", "mdi:gesture-tap-button"),
+                "device": device,
+            }
+            self.publish(f"homeassistant/button/{node}/config", json.dumps(payload, ensure_ascii=False), True)
 
         self._done.add(key)
         LOG.info("discovery published for %s (%d entities)", key, published)
