@@ -70,7 +70,7 @@ class Discovery:
             "manufacturer": "Fotile",
             "model": model or product_id,
         }
-        state_topic = f"sync/{product_id}/{device_id}"
+        state_topic = f"fotile/state/{product_id}/{device_id}"
         known = {f.key for f in fields}
         published = 0
 

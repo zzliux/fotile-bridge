@@ -23,6 +23,7 @@ class MqttBridge:
         self.profiles = profiles
         self.discovery = Discovery(self.publish)
         self.client = None
+        self._state = {}  # (product, device) -> 合并后的状态
 
     # ---- paho ----
 
@@ -39,8 +40,9 @@ class MqttBridge:
 
     def _on_connect(self, client, userdata, flags, reason_code, properties=None):
         client.subscribe("sync/#")
+        client.subscribe("fotile/state/#")
         client.subscribe("fotile/+/+/set")
-        LOG.info("subscribed sync/# and fotile/+/+/set")
+        LOG.info("subscribed sync/#, fotile/state/#, fotile/+/+/set")
 
     def publish(self, topic: str, payload: str, retain: bool = False) -> None:
         if self.client is not None:
@@ -58,6 +60,8 @@ class MqttBridge:
 
         if topic.startswith("sync/"):
             self._handle_sync(topic, payload)
+        elif topic.startswith("fotile/state/"):
+            self._handle_retained_state(topic, payload)
         elif topic.startswith("fotile/") and topic.endswith("/set"):
             self._handle_command(topic, payload)
 
@@ -66,13 +70,32 @@ class MqttBridge:
         if len(parts) != 3:
             return
         product_id, device_id = parts[1].upper(), parts[2]
+        key = (product_id, device_id)
+        merged = dict(self._state.get(key) or {})
+        merged.update(payload)
+        self._state[key] = merged
+
+        # 保留合并后的状态，HA 重启后也能直接拿到数值
+        self.publish(f"fotile/state/{product_id}/{device_id}", json.dumps(merged, ensure_ascii=False), True)
+
         profile = self.profiles.get(product_id)
         if profile is None:
-            # 没有 profile 的型号也不丢数据：按字段名自动生成实体
             LOG.info("no profile for product %s, using generic discovery", product_id)
-            self.discovery.ensure_generic(product_id, device_id, payload)
+            self.discovery.ensure_generic(product_id, device_id, merged)
             return
-        self.discovery.ensure(profile, device_id, payload)
+        self.discovery.ensure(profile, device_id, merged)
+
+    def _handle_retained_state(self, topic: str, payload: dict) -> None:
+        parts = topic.split("/")
+        if len(parts) != 4:
+            return
+        product_id, device_id = parts[2].upper(), parts[3]
+        self._state[(product_id, device_id)] = dict(payload)
+        profile = self.profiles.get(product_id)
+        if profile is None:
+            self.discovery.ensure_generic(product_id, device_id, payload)
+        else:
+            self.discovery.ensure(profile, device_id, payload)
 
     def _handle_command(self, topic: str, payload: dict) -> None:
         parts = topic.split("/")

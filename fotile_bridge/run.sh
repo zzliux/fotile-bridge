@@ -38,7 +38,8 @@ if bridge_host:
         'topic sync/# out 0',
         'topic reply/# out 0',
         'topic homeassistant/# out 0',
-        'topic fotile/# in 0',
+        'topic fotile/state/# out 0',
+        'topic fotile/+/+/set in 0',
     ]
     user = (opt.get('ha_mqtt_user') or '').strip()
     if user:
