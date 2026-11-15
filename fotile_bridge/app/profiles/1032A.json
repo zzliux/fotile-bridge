@@ -210,7 +210,6 @@
       "button": {
         "name": "日常洗并启动"
       },
-      "delay_ms": 1500,
       "sequence": [
         {
           "WorkMode": 0,
@@ -218,9 +217,6 @@
           "AddFunL": 1,
           "StoreTotalTime": 10,
           "PowerSwitchAll": 1
-        },
-        {
-          "WorkState": 2
         }
       ]
     },
@@ -230,17 +226,17 @@
       },
       "sequence": [
         {
-          "WorkState": 2
+          "WorkState": 1
         }
       ]
     },
     "pause": {
       "button": {
-        "name": "暂停(实验)"
+        "name": "暂停"
       },
       "sequence": [
         {
-          "WorkState": 3
+          "WorkState": 2
         }
       ]
     },
