@@ -170,3 +170,17 @@ TSL 关键信息（`fotile_bridge/app/tsl_seed/1032A.json`）：
 
 TSL 已随项目附带（`tsl_seed`），首次启动自动灌进缓存；没有样本的型号会在 learn 模式下
 透传真实云并自动落盘。
+
+## 状态字段可读化（0.2.1）
+
+原始协议里的状态是数字，HA 实体通过 `value_template` 映射成中文：
+
+| 字段 | 原始值 | 显示 |
+|---|---|---|
+| `WorkState` | 0 / 1 / 2 / 3 / 4 | 已关机 / 待机 / 运行中 / 暂停 / 已完成 |
+| `RunState` | 0 / 1 | 停止 / 运行 |
+| `DoorLockSta` | 0 / 1 | binary_sensor（1=已上锁） |
+| `ClRemTime` | 数字（分钟） | 剩余时间 |
+
+`GSC*`（蒸汽清洁）、`Valley*`（峰谷）、`AuthType`、`RemoteAuth`、`WorkMode` 这些
+含义未完全确认或偏内部的字段，默认 `enabled_by_default: false`，需要时在 HA 里手动启用。

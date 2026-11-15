@@ -105,7 +105,7 @@ class Discovery:
             "unique_id": node,
             "object_id": node,
             "state_topic": state_topic,
-            "value_template": f"{{{{ value_json.{field.key} }}}}",
+            "value_template": self._template(field),
             "device": device,
         }
         if field.entity == "binary_sensor":
@@ -118,11 +118,23 @@ class Discovery:
                 payload["device_class"] = field.device_class
         if field.icon:
             payload["icon"] = field.icon
+        if not field.enabled:
+            payload["enabled_by_default"] = False
         self.publish(
             f"homeassistant/{field.entity}/{node}/config",
             json.dumps(payload, ensure_ascii=False),
             True,
         )
+
+    @staticmethod
+    def _template(field: Field) -> str:
+        if field.options:
+            mapping = ", ".join(f"'{k}': '{v}'" for k, v in field.options.items())
+            return (
+                "{{ {" + mapping + "}.get(value_json." + field.key
+                + " | string, value_json." + field.key + ") }}"
+            )
+        return f"{{{{ value_json.{field.key} }}}}"
 
     def _publish_power_switch(self, device: dict, state_topic: str, product_id: str, device_id: str, power_key: str) -> None:
         node = f"fotile_{product_id}_{device_id}_power"

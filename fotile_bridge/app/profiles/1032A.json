@@ -1,162 +1,56 @@
 {
   "productId": "1032A",
+  "model": "JBSD2T-02-M6Max",
   "name": "洗碗机",
   "powerKey": "PowerSwitchAll",
   "fields": {
-    "PowerSwitchAll": {
-      "name": "电源",
-      "icon": "mdi:power"
-    },
+    "PowerSwitchAll": { "name": "电源（原始值）", "icon": "mdi:power", "enabled": false },
     "WorkState": {
       "name": "工作状态",
-      "icon": "mdi:state-machine"
+      "icon": "mdi:state-machine",
+      "values": { "0": "已关机", "1": "待机", "2": "运行中", "3": "暂停", "4": "已完成" }
     },
     "RunState": {
       "name": "运行状态",
-      "icon": "mdi:play-circle-outline"
+      "icon": "mdi:play-circle-outline",
+      "values": { "0": "停止", "1": "运行" }
     },
-    "WorkMode": {
-      "name": "工作模式",
-      "icon": "mdi:dishwasher"
-    },
-    "AddFunL": {
-      "name": "附加功能",
-      "icon": "mdi:plus-box-outline"
-    },
-    "StoreTotalTime": {
-      "name": "存储总时间",
-      "unit": "h",
-      "device_class": "duration",
-      "icon": "mdi:timer-outline"
-    },
-    "SetAppointmentTime": {
-      "name": "预约时间",
-      "unit": "min",
-      "device_class": "duration",
-      "icon": "mdi:clock-outline"
-    },
-    "SoftensaltLevel": {
-      "name": "软水盐档位",
-      "icon": "mdi:shaker-outline"
-    },
-    "DoorLockSta": {
-      "name": "门锁",
-      "entity": "binary_sensor",
-      "icon": "mdi:door-closed-lock"
-    },
-    "Reminder": {
-      "name": "提醒",
-      "icon": "mdi:bell-outline"
-    },
-    "ErrorNum": {
-      "name": "故障码",
-      "icon": "mdi:alert-circle-outline"
-    },
-    "RemoteAuth": {
-      "name": "远程授权",
-      "icon": "mdi:shield-key-outline"
-    },
-    "AutoDrain": {
-      "name": "自动排水",
-      "entity": "binary_sensor",
-      "icon": "mdi:water-pump"
-    },
-    "ClRemTime": {
-      "name": "剩余时间",
-      "unit": "min",
-      "device_class": "duration",
-      "icon": "mdi:timer-sand"
-    },
-    "StRemTime": {
-      "name": "剩余总时间",
-      "unit": "min",
-      "device_class": "duration",
-      "icon": "mdi:timer-outline"
-    },
-    "SetWorkTime": {
-      "name": "设定工作时间",
-      "unit": "min",
-      "device_class": "duration",
-      "icon": "mdi:clock-digital"
-    },
-    "GSCPowerSwitch": {
-      "name": "蒸汽清洁电源",
-      "icon": "mdi:weather-cloudy"
-    },
-    "GSCWorkSta": {
-      "name": "蒸汽清洁状态",
-      "icon": "mdi:weather-cloudy"
-    },
-    "GSCRunSta": {
-      "name": "蒸汽清洁运行",
-      "icon": "mdi:play-circle-outline"
-    },
-    "GSCWorkMode": {
-      "name": "蒸汽清洁模式",
-      "icon": "mdi:weather-cloudy"
-    },
-    "GSCSetWorkT": {
-      "name": "蒸汽清洁设定时间",
-      "unit": "min",
-      "device_class": "duration",
-      "icon": "mdi:clock-digital"
-    },
-    "GSCClRemT": {
-      "name": "蒸汽清洁剩余时间",
-      "unit": "min",
-      "device_class": "duration",
-      "icon": "mdi:timer-sand"
-    },
-    "GSCDoorLockSta": {
-      "name": "蒸汽清洁门锁",
-      "entity": "binary_sensor",
-      "icon": "mdi:door-closed-lock"
-    },
-    "ValleyAppoint": {
-      "name": "峰谷预约",
-      "icon": "mdi:calendar-clock"
-    },
-    "ValleyMode": {
-      "name": "峰谷模式",
-      "icon": "mdi:transmission-tower"
-    },
-    "ValleyAddFunL": {
-      "name": "峰谷附加功能",
-      "icon": "mdi:plus-box-outline"
-    },
-    "ValleyStoreTime": {
-      "name": "峰谷存储时间",
-      "unit": "h",
-      "device_class": "duration",
-      "icon": "mdi:timer-outline"
-    },
-    "AllowRemoteControl": {
-      "name": "允许远程控制",
-      "entity": "binary_sensor",
-      "icon": "mdi:remote"
-    },
-    "AuthType": {
-      "name": "授权类型",
-      "icon": "mdi:key-outline"
-    },
-    "NewRemoteAuth": {
-      "name": "远程授权类型",
-      "icon": "mdi:key-outline"
-    }
+    "WorkMode": { "name": "工作模式（原始值）", "icon": "mdi:dishwasher", "enabled": false },
+    "AddFunL": { "name": "附加功能", "icon": "mdi:plus-box-outline", "enabled": false },
+    "StoreTotalTime": { "name": "存储总时间", "unit": "h", "device_class": "duration", "icon": "mdi:timer-outline", "enabled": false },
+    "SetAppointmentTime": { "name": "预约时间", "unit": "min", "device_class": "duration", "icon": "mdi:clock-outline" },
+    "SoftensaltLevel": { "name": "软水盐档位", "icon": "mdi:shaker-outline" },
+    "DoorLockSta": { "name": "门锁（1=已上锁）", "entity": "binary_sensor", "icon": "mdi:door-closed-lock" },
+    "Reminder": { "name": "提醒", "icon": "mdi:bell-outline" },
+    "ErrorNum": { "name": "故障码", "icon": "mdi:alert-circle-outline" },
+    "RemoteAuth": { "name": "远程授权", "icon": "mdi:shield-key-outline", "enabled": false },
+    "AutoDrain": { "name": "自动排水", "entity": "binary_sensor", "icon": "mdi:water-pump", "enabled": false },
+    "ClRemTime": { "name": "剩余时间", "unit": "min", "device_class": "duration", "icon": "mdi:timer-sand" },
+    "StRemTime": { "name": "剩余总时间", "unit": "min", "device_class": "duration", "icon": "mdi:timer-outline" },
+    "SetWorkTime": { "name": "设定工作时间", "unit": "min", "device_class": "duration", "icon": "mdi:clock-digital" },
+    "GSCPowerSwitch": { "name": "蒸汽清洁电源", "icon": "mdi:weather-cloudy", "enabled": false },
+    "GSCWorkSta": { "name": "蒸汽清洁状态", "icon": "mdi:weather-cloudy", "enabled": false },
+    "GSCRunSta": { "name": "蒸汽清洁运行", "icon": "mdi:play-circle-outline", "enabled": false },
+    "GSCWorkMode": { "name": "蒸汽清洁模式", "icon": "mdi:weather-cloudy", "enabled": false },
+    "GSCSetWorkT": { "name": "蒸汽清洁设定时间", "unit": "min", "device_class": "duration", "icon": "mdi:clock-digital", "enabled": false },
+    "GSCClRemT": { "name": "蒸汽清洁剩余时间", "unit": "min", "device_class": "duration", "icon": "mdi:timer-sand", "enabled": false },
+    "GSCDoorLockSta": { "name": "蒸汽清洁门锁", "entity": "binary_sensor", "icon": "mdi:door-closed-lock", "enabled": false },
+    "GSCAutoDrain": { "name": "蒸汽清洁自动排水", "entity": "binary_sensor", "icon": "mdi:water-pump", "enabled": false },
+    "GSCErrorNum": { "name": "蒸汽清洁故障码", "icon": "mdi:alert-circle-outline", "enabled": false },
+    "ValleyAppoint": { "name": "峰谷预约", "icon": "mdi:calendar-clock", "enabled": false },
+    "ValleyMode": { "name": "峰谷模式", "icon": "mdi:transmission-tower", "enabled": false },
+    "ValleyAddFunL": { "name": "峰谷附加功能", "icon": "mdi:plus-box-outline", "enabled": false },
+    "ValleyStoreTime": { "name": "峰谷存储时间", "unit": "h", "device_class": "duration", "icon": "mdi:timer-outline", "enabled": false },
+    "AllowRemoteControl": { "name": "允许远程控制", "entity": "binary_sensor", "icon": "mdi:remote", "enabled": false },
+    "AuthType": { "name": "授权类型", "icon": "mdi:key-outline", "enabled": false },
+    "NewRemoteAuth": { "name": "远程授权类型", "icon": "mdi:key-outline", "enabled": false }
   },
   "commands": {
     "power": {
       "options": {
-        "on": {
-          "PowerSwitchAll": 1,
-          "GSCPowerSwitch": 1
-        },
-        "off": {
-          "PowerSwitchAll": 0,
-          "GSCPowerSwitch": 0
-        }
+        "on": { "PowerSwitchAll": 1, "GSCPowerSwitch": 1 },
+        "off": { "PowerSwitchAll": 0, "GSCPowerSwitch": 0 }
       }
     }
-  },
-  "model": "JBSD2T-02-M6Max"
+  }
 }

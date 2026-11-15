@@ -15,6 +15,8 @@ class Field:
     device_class: str = ""
     icon: str = ""
     entity: str = "sensor"  # sensor | binary_sensor
+    options: Dict[str, str] = field(default_factory=dict)  # 原始值 -> 可读文案
+    enabled: bool = True
 
     @classmethod
     def from_dict(cls, key: str, data: dict) -> "Field":
@@ -25,6 +27,8 @@ class Field:
             device_class=data.get("device_class", ""),
             icon=data.get("icon", ""),
             entity=data.get("entity", "sensor"),
+            options={str(k): str(v) for k, v in (data.get("values") or {}).items()},
+            enabled=bool(data.get("enabled", True)),
         )
 
 

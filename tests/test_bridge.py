@@ -73,3 +73,19 @@ def test_extra_fields_become_sensors():
     bridge._handle_sync("sync/1032A/1149539722", {"ClRemTime": 5, "NewField": 1})
     topics = [t for t, _, _ in bridge.client.sent]
     assert "homeassistant/sensor/fotile_1032A_1149539722_NewField/config" in topics
+
+
+def test_value_mapping_template():
+    bridge = make_bridge()
+    bridge._handle_sync("sync/1032A/1149539722", {"WorkState": 2})
+    configs = {t: p for t, p, _ in bridge.client.sent if t.endswith("_WorkState/config")}
+    payload = json.loads(next(iter(configs.values())))
+    assert "运行中" in payload["value_template"]
+
+
+def test_disabled_field_has_enabled_by_default_false():
+    bridge = make_bridge()
+    bridge._handle_sync("sync/1032A/1149539722", {"PowerSwitchAll": 1})
+    configs = {t: p for t, p, _ in bridge.client.sent if t.endswith("_PowerSwitchAll/config")}
+    payload = json.loads(next(iter(configs.values())))
+    assert payload["enabled_by_default"] is False
