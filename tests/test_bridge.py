@@ -168,3 +168,11 @@ def test_hhmm_decode_template():
     t = d._template(Field(key="ClRemTime", decode="hhmm"))
     assert "value_json.ClRemTime // 256" in t
     assert "// 256) * 60" in t
+
+
+def test_hhmm_time_template():
+    from app.discovery import Discovery
+    from app.profile import Field
+    d = Discovery(lambda *a: None)
+    t = d._template(Field(key="SetAppointmentTime", decode="hhmm_time"))
+    assert "未设置" in t and "// 256" in t

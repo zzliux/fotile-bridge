@@ -17,7 +17,8 @@
         "1": "待机",
         "2": "运行中",
         "3": "暂停",
-        "4": "已完成"
+        "4": "已完成",
+        "6": "预约等待"
       }
     },
     "RunState": {
@@ -45,11 +46,10 @@
       "icon": "mdi:calendar-range"
     },
     "SetAppointmentTime": {
-      "name": "预约时间",
-      "unit": "min",
-      "device_class": "duration",
+      "name": "预约启动时间",
       "icon": "mdi:clock-outline",
-      "enabled": false
+      "decode": "hhmm_time",
+      "enabled": true
     },
     "SoftensaltLevel": {
       "name": "软水盐档位",

@@ -174,6 +174,12 @@ class Discovery:
 
     @staticmethod
     def _template(field: Field) -> str:
+        if field.decode == "hhmm_time":
+            v = f"value_json.{field.key}"
+            return (
+                "{{ '未设置' if " + v + " == 6144 else"
+                " '%02d:%02d' | format(" + v + " // 256, " + v + " % 256) }}"
+            )
         if field.decode == "hhmm":
             v = f"value_json.{field.key}"
             return (
