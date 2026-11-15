@@ -176,3 +176,11 @@ def test_hhmm_time_template():
     d = Discovery(lambda *a: None)
     t = d._template(Field(key="SetAppointmentTime", decode="hhmm_time"))
     assert "未设置" in t and "// 256" in t
+
+
+def test_hhmm_day_template():
+    from app.discovery import Discovery
+    from app.profile import Field
+    d = Discovery(lambda *a: None)
+    t = d._template(Field(key="SetAppointmentTime", decode="hhmm_day"))
+    assert "// 24" in t and "明天" in t and "未设置" in t

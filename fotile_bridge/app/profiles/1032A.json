@@ -46,9 +46,9 @@
       "icon": "mdi:calendar-range"
     },
     "SetAppointmentTime": {
-      "name": "预约启动时间",
+      "name": "预约启动",
       "icon": "mdi:clock-outline",
-      "decode": "hhmm_time",
+      "decode": "hhmm_day",
       "enabled": true
     },
     "SoftensaltLevel": {
