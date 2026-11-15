@@ -105,3 +105,11 @@ def test_appointment_command():
     topic, payload, _ = bridge.client.sent[-1]
     assert topic == "control/1032A/1149539722"
     assert json.loads(payload) == {"SetAppointmentTime": 45}
+
+
+def test_generic_controls_discovery():
+    bridge = make_bridge()
+    bridge._handle_sync("sync/1032A/1149539722", {"GSCPowerSwitch": 0, "StoreTotalTime": 7})
+    topics = [t for t, _, _ in bridge.client.sent]
+    assert any("_GSCPowerSwitch_switch/config" in t for t in topics)
+    assert any("_StoreTotalTime_number/config" in t for t in topics)

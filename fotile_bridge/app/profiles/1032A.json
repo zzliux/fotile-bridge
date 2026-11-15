@@ -206,5 +206,75 @@
     "drain": {
       "experimental": true
     }
-  }
+  },
+  "controls": [
+    {
+      "type": "number",
+      "name": "预约时间(分钟)",
+      "field": "SetAppointmentTime",
+      "min": 0,
+      "max": 1440,
+      "unit": "min",
+      "icon": "mdi:clock-outline"
+    },
+    {
+      "type": "switch",
+      "name": "蒸汽清洁",
+      "field": "GSCPowerSwitch",
+      "on": 1,
+      "off": 0,
+      "icon": "mdi:weather-cloudy"
+    },
+    {
+      "type": "number",
+      "name": "蒸汽清洁时间(分钟)",
+      "field": "GSCSetWorkT",
+      "min": 1,
+      "max": 120,
+      "unit": "min",
+      "icon": "mdi:clock-digital"
+    },
+    {
+      "type": "number",
+      "name": "存储时间(小时)",
+      "field": "StoreTotalTime",
+      "min": 1,
+      "max": 72,
+      "unit": "h",
+      "icon": "mdi:timer-outline"
+    },
+    {
+      "type": "number",
+      "name": "软水盐档位",
+      "field": "SoftensaltLevel",
+      "min": 0,
+      "max": 10,
+      "icon": "mdi:shaker-outline"
+    },
+    {
+      "type": "number",
+      "name": "工作模式(原始值)",
+      "field": "WorkMode",
+      "min": 0,
+      "max": 10,
+      "icon": "mdi:dishwasher"
+    },
+    {
+      "type": "switch",
+      "name": "峰谷模式",
+      "field": "ValleyMode",
+      "on": 1,
+      "off": 0,
+      "icon": "mdi:transmission-tower"
+    },
+    {
+      "type": "number",
+      "name": "峰谷预约(分钟)",
+      "field": "ValleyAppoint",
+      "min": 0,
+      "max": 1440,
+      "unit": "min",
+      "icon": "mdi:calendar-clock"
+    }
+  ]
 }

@@ -35,6 +35,7 @@ class Discovery:
             commands=profile.commands,
             power_key=profile.power_key,
             model=profile.model,
+            controls=profile.controls,
         )
 
     def ensure_generic(self, product_id: str, device_id: str, state: Dict[str, object]) -> None:
@@ -46,6 +47,7 @@ class Discovery:
             commands={},
             power_key=None,
             model="",
+            controls=[],
         )
 
     # ---- 内部 ----
@@ -59,6 +61,7 @@ class Discovery:
         commands: Dict[str, dict],
         power_key: str,
         model: str,
+        controls: List[dict],
     ) -> None:
         key = f"{product_id}:{device_id}"
         if key in self._done:
@@ -98,6 +101,7 @@ class Discovery:
             self._publish_appointment(device, state_topic, product_id, device_id)
         if "drain" in commands:
             self._publish_drain_button(device, product_id, device_id)
+        self._publish_controls(device, state_topic, product_id, device_id, controls)
 
         self._done.add(key)
         LOG.info("discovery published for %s (%d entities)", key, published)
@@ -139,6 +143,53 @@ class Discovery:
                 + " | string, value_json." + field.key + ") }}"
             )
         return f"{{{{ value_json.{field.key} }}}}"
+
+    def _publish_controls(self, device: dict, state_topic: str, product_id: str, device_id: str, controls: list) -> None:
+        for control in controls:
+            kind = control.get("type", "number")
+            field = control.get("field")
+            if not field:
+                continue
+            node = f"fotile_{product_id}_{device_id}_{field}_{kind}"
+            base = {
+                "name": control.get("name", field),
+                "unique_id": node,
+                "object_id": node,
+                "command_topic": f"fotile/{product_id}/{device_id}/set",
+                "state_topic": state_topic,
+                "value_template": f"{{{{ value_json.{field} }}}}",
+                "device": device,
+            }
+            if control.get("icon"):
+                base["icon"] = control["icon"]
+            if kind == "switch":
+                base["payload_on"] = json.dumps({field: control.get("on", 1)})
+                base["payload_off"] = json.dumps({field: control.get("off", 0)})
+                base["state_on"] = str(control.get("on", 1))
+                base["state_off"] = str(control.get("off", 0))
+                topic = f"homeassistant/switch/{node}/config"
+            elif kind == "button":
+                base.pop("state_topic", None)
+                base.pop("value_template", None)
+                base["payload_press"] = json.dumps(control.get("payload") or {field: 1})
+                topic = f"homeassistant/button/{node}/config"
+            elif kind == "select":
+                options = control.get("options") or {}
+                base["options"] = list(options.keys())
+                mapping = ", ".join(f"'{k}': {v}" for k, v in options.items())
+                base["command_template"] = "{'x': 1}"  # placeholder, replaced below
+                base["command_template"] = '{"' + field + '": {{ {' + mapping + '}[value] }}}'
+                topic = f"homeassistant/select/{node}/config"
+            else:
+                base["command_topic"] = f"fotile/{product_id}/{device_id}/set"
+                base["command_template"] = '{"' + field + '": {{ value }}}'
+                base["min"] = control.get("min", 0)
+                base["max"] = control.get("max", 100)
+                base["step"] = control.get("step", 1)
+                if control.get("unit"):
+                    base["unit_of_measurement"] = control["unit"]
+                topic = f"homeassistant/number/{node}/config"
+            self.publish(topic, json.dumps(base, ensure_ascii=False), True)
 
     def _publish_appointment(self, device: dict, state_topic: str, product_id: str, device_id: str) -> None:
         node = f"fotile_{product_id}_{device_id}_appointment"

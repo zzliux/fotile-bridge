@@ -140,6 +140,13 @@ class MqttBridge:
             LOG.info("drain -> %s", control_topic)
             return
 
+        if profile is not None:
+            known = {f.key for f in profile.fields}
+            if payload and all(k in known for k in payload):
+                self.publish(control_topic, json.dumps(payload), False)
+                LOG.info("field command -> %s %s", control_topic, payload)
+                return
+
         if profile is None or not profile.commands:
             # 没有映射时按原样下发，方便调试
             self.publish(control_topic, json.dumps(payload), False)
