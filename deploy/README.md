@@ -1,31 +1,21 @@
-# 部署：把洗碗机的 HTTP 流量导到本地最小云
+# 部署脚本
 
-只改旁路由，不动主路由 DNS，因此**手机上的方太 App 仍然走真实云**。
+完整步骤见 [../docs/deployment.md](../docs/deployment.md)。
 
-前提：
-
-- 洗碗机网关已经指向旁路由（`192.168.31.2`）
-- HA 上 Fotile Local Bridge 已启动，`http_port=8088`、`mqtt_port=1885`
-- `advertise_host` 设为 HA 的 IP（`192.168.31.150`）
-
-执行：
+- `side-router-dnat.sh`：在旁路由上把洗碗机的 HTTP(80) 透明转发到 HA 的最小云。
+  - ImmortalWrt/OpenWrt 24.x 使用 nftables（自动检测）
+  - 老版本回退到 iptables
+  - 只匹配指定源 IP，不动 DNS，不影响手机 App
 
 ```bash
 scp deploy/side-router-dnat.sh root@192.168.31.2:/tmp/
 ssh root@192.168.31.2 'sh /tmp/side-router-dnat.sh apply'
+ssh root@192.168.31.2 'sh /tmp/side-router-dnat.sh status'
+ssh root@192.168.31.2 'sh /tmp/side-router-dnat.sh rollback'
 ```
 
-然后给洗碗机断电重连，它会：
-
-1. `POST /v5/time_sync/` → 本地最小云
-2. `POST /v2/new_device_login` → 本地返回 token
-3. `POST /iot-mqttManager/routeService` → 返回 `192.168.31.150:1885`
-4. 连本地 MQTT，开始发 `sync/1032A/<deviceId>`
-
-HA 里会自动出现实体（MQTT Discovery）。
-
-回滚：
+可用环境变量覆盖默认值：
 
 ```bash
-ssh root@192.168.31.2 'sh /tmp/side-router-dnat.sh rollback'
+DEV=192.168.31.241 HA=192.168.31.150 PORT=8088 sh side-router-dnat.sh apply
 ```

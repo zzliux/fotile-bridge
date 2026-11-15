@@ -9,27 +9,29 @@
 
 ## 架构
 
+设备**不知道**自己被接管了：它仍然访问 `api.fotile.com`，由路由器做透明重定向。
+
 ```
-┌──────────┐   DNS: api.fotile.com → HA      ┌──────────────────────────────┐
-│ 方太设备  │ ───────────────────────────────▶ │  fotile_bridge (HA add-on)   │
-│          │   HTTP :8088  (最小云)            │  ├─ aiohttp 最小云 / TSL 缓存  │
-│          │   MQTT :1883  (routeService 返回) │  ├─ mosquitto (设备接入)      │
-└──────────┘                                  │  └─ MQTT bridge → HA broker   │
-                                              └──────────────┬───────────────┘
-                                                             │ sync/# control/#
-                                                      ┌──────▼───────┐
-                                                      │ Home Assistant│
-                                                      │  MQTT 集成    │
-                                                      └──────────────┘
+                     ┌──────────── 主路由 ────────────┐
+ 方太设备 ──Wi-Fi──▶ │ PBR: 按 MAC 打标 → 走旁路由      │
+                     └───────────────┬────────────────┘
+                                     ▼
+                     ┌──────────── 旁路由 ────────────┐
+                     │ nftables DNAT: 设备:80 → HA:8088│
+                     └───────────────┬────────────────┘
+                                     ▼
+                     ┌──────────── HA ────────────────┐
+                     │ :8088 最小云  :1885 设备 broker │
+                     │ 桥接 → :1883 HA Mosquitto       │
+                     └────────────────────────────────┘
 ```
 
-设备开机流程：
+- **不改 DNS**：只有指定设备被重定向，手机 App 照常访问真实云
+- **不改设备**：设备仍然认为自己连的是方太云
+- 设备开机：`time_sync` → `new_device_login` → `routeService` → 连本地 MQTT
+- HA 侧：MQTT Discovery 自动生成实体（电源开关 + 状态传感器）
 
-1. `POST /v2/time_sync`、`/v2/new_device_login` → 本地返回会话（含伪造 token）
-2. `POST /v3/device/access/new` → 本地返回，不带 mqttIp
-3. `POST /iot-mqttManager/routeService` → 返回**本地** MQTT broker 地址
-4. `POST /v2/tsl/query/product` → 返回缓存的物模型；没有缓存时透传真实云端并落盘
-5. 设备连本地 MQTT，订阅 `control/{pid}/{did}` 等主题，向 `sync/{pid}/{did}` 上报状态
+完整步骤、验证命令、踩坑记录见 [docs/deployment.md](docs/deployment.md)。
 
 ## 快速开始（HAOS）
 
