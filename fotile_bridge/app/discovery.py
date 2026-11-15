@@ -20,9 +20,11 @@ SKIP_KEYS = {"offline", "timestamp", "time"}
 
 
 class Discovery:
-    def __init__(self, publish: Callable[[str, str, bool], None]):
+    def __init__(self, publish: Callable[[str, str, bool], None], show_experimental: bool = False):
         self.publish = publish
+        self.show_experimental = show_experimental
         self._done: Set[str] = set()
+        self._cleaned: Set[str] = set()
 
     # ---- 对外 ----
 
@@ -103,12 +105,14 @@ class Discovery:
 
         if "power" in commands:
             self._publish_power_switch(device, state_topic, product_id, device_id, power_key or "PowerSwitchAll")
-        if "appointment" in commands:
+        if self.show_experimental and "appointment" in commands:
             self._publish_appointment(device, state_topic, product_id, device_id)
-        if "drain" in commands:
+        if self.show_experimental and "drain" in commands:
             self._publish_drain_button(device, product_id, device_id)
         self._publish_controls(device, state_topic, product_id, device_id, controls)
-        self._publish_text_controls(device, state_topic, product_id, device_id, text_controls)
+        if self.show_experimental:
+            self._publish_text_controls(device, state_topic, product_id, device_id, text_controls)
+        self._cleanup_hidden(product_id, device_id)
         if programs:
             node = f"fotile_{product_id}_{device_id}_program"
             payload = {
@@ -226,6 +230,21 @@ class Discovery:
                     base["unit_of_measurement"] = control["unit"]
                 topic = f"homeassistant/number/{node}/config"
             self.publish(topic, json.dumps(base, ensure_ascii=False), True)
+
+    def _cleanup_hidden(self, product_id: str, device_id: str) -> None:
+        """把旧版本已经注册、现在默认隐藏的实体的 discovery 清空，让 HA 移除它们。"""
+        key = f"{product_id}:{device_id}"
+        if key in self._cleaned:
+            return
+        base = f"fotile_{product_id}_{device_id}"
+        for topic in (
+            f"homeassistant/number/{base}_appointment/config",
+            f"homeassistant/button/{base}_drain/config",
+            f"homeassistant/text/{base}_text_WorkMode/config",
+            f"homeassistant/text/{base}_text_WorkState/config",
+        ):
+            self.publish(topic, "", True)
+        self._cleaned.add(key)
 
     def _publish_text_controls(self, device: dict, state_topic: str, product_id: str, device_id: str, text_controls: list) -> None:
         for item in text_controls:

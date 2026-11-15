@@ -1,5 +1,5 @@
 name: Fotile Local Bridge
-version: "0.8.3"
+version: "0.8.4"
 slug: fotile_bridge
 description: 把方太智能家电从厂商云接管到本地 Home Assistant（HTTP 最小云 + 本地 MQTT）
 url: https://github.com/zzliux/fotile-local-bridge
@@ -31,6 +31,7 @@ options:
   relay_enabled: false
   relay_port: 1886
   relay_upstream: "121.41.80.81"
+  show_experimental: false
 schema:
   http_port: port
   mqtt_port: port
@@ -51,3 +52,4 @@ schema:
   relay_enabled: bool
   relay_port: port
   relay_upstream: str
+  show_experimental: bool

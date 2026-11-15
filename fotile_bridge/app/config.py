@@ -30,6 +30,7 @@ class Config:
     relay_enabled: bool = False
     relay_port: int = 1886
     relay_upstream: str = "121.41.80.81"
+    show_experimental: bool = False
 
 
 def load_config(path: str = "/data/options.json") -> Config:
@@ -59,5 +60,6 @@ def load_config(path: str = "/data/options.json") -> Config:
         relay_enabled=bool(raw.get("relay_enabled", False)),
         relay_port=int(raw.get("relay_port", 1886)),
         relay_upstream=str(raw.get("relay_upstream") or "121.41.80.81"),
+        show_experimental=bool(raw.get("show_experimental", False)),
     )
     return cfg

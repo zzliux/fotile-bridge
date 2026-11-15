@@ -107,13 +107,14 @@ def test_appointment_command():
     assert json.loads(payload) == {"SetAppointmentTime": 45}
 
 
-def test_text_controls_are_hidden_by_default():
+def test_hidden_entities_are_not_published_and_old_ones_cleared():
     bridge = make_bridge()
     bridge._handle_sync("sync/1032A/1149539722", {"WorkMode": 0, "WorkState": 0})
-    configs = {t: p for t, p, _ in bridge.client.sent if "_text_" in t and t.endswith("/config")}
-    assert configs
-    for payload in configs.values():
-        assert json.loads(payload)["enabled_by_default"] is False
+    sent = bridge.client.sent
+    assert not any("_text_" in t for t, _, _ in sent)
+    cleared = [t for t, p, retain in sent if p == "" and retain and t.endswith("/config")]
+    assert any(t.endswith("_text_WorkMode/config") for t in cleared)
+    assert any(t.endswith("_appointment/config") for t in cleared)
 
 
 def test_start_command():

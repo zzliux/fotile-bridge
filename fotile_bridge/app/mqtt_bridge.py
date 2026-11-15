@@ -22,7 +22,7 @@ class MqttBridge:
     def __init__(self, cfg: Config, profiles: ProfileStore):
         self.cfg = cfg
         self.profiles = profiles
-        self.discovery = Discovery(self.publish)
+        self.discovery = Discovery(self.publish, show_experimental=cfg.show_experimental)
         self.client = None
         self._state = {}  # (product, device) -> 合并后的状态
         self._programs = {}  # device_id -> 选中的程序名
