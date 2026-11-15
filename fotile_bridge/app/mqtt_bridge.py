@@ -156,6 +156,12 @@ class MqttBridge:
             name = self._programs.get(device_id, "")
             spec = (profile.programs or {}).get(name)
             if not spec:
+                # add-on 重启后 HA 不会重发未变化的 select 值，回退到第一个程序（日常洗）
+                fallback = next(iter(profile.programs or {}), "")
+                if fallback:
+                    LOG.warning("no program selected for %s, fallback to %s", device_id, fallback)
+                    name, spec = fallback, profile.programs[fallback]
+            if not spec:
                 LOG.warning("unknown program %s for %s", name, device_id)
                 return
             body = {

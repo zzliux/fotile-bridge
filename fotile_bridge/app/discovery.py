@@ -118,6 +118,7 @@ class Discovery:
                 "unique_id": node,
                 "object_id": node,
                 "command_topic": f"fotile/{product_id}/{device_id}/program",
+                "retain": True,
                 "options": list(programs.keys()),
                 "icon": "mdi:dishwasher",
                 "device": device,
