@@ -208,3 +208,12 @@ def test_program_select_is_optimistic_and_sensor_maps_program():
     assert "state_topic" not in sel
     cur = json.loads(sent["homeassistant/sensor/fotile_1032A_1149539722_WorkMode/config"])
     assert "超净洗" in cur["value_template"]
+
+
+def test_current_program_shows_only_when_running():
+    from app.discovery import Discovery
+    from app.profile import Field
+    d = Discovery(lambda *a: None)
+    t = d._template(Field(key="WorkMode", decode="program", options={"2": "超净洗"}))
+    assert "WorkState in [2, 6]" in t
+    assert "超净洗" in t

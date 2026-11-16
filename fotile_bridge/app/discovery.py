@@ -207,6 +207,13 @@ class Discovery:
                 " if ((" + v + " % 256) < 60 and (" + v + " // 256) < 24)"
                 " else " + v + " }}"
             )
+        if field.decode == "program" and field.options:
+            mapping = ", ".join(f"'{k}': '{v}'" for k, v in field.options.items())
+            return (
+                "{% set m = {" + mapping + "} %}"
+                "{{ m.get(value_json.WorkMode | string, '未知')"
+                " if value_json.WorkState in [2, 6] else '无' }}"
+            )
         if field.options:
             mapping = ", ".join(f"'{k}': '{v}'" for k, v in field.options.items())
             return (
