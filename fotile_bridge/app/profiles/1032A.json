@@ -17,10 +17,10 @@
         "1": "待机",
         "2": "运行中",
         "3": "暂停",
-        "4": "已完成",
+        "4": "烘干中",
         "6": "预约等待"
       },
-      "note": "0关机 1待机 2运行 3未确认 4完成 6预约等待"
+      "note": "0关机 1待机 2运行 4烘干中 6预约等待；3未确认"
     },
     "RunState": {
       "name": "运行状态",
@@ -108,13 +108,13 @@
       "note": "小时*256+分钟；decode=hhmm"
     },
     "StRemTime": {
-      "name": "剩余总时间(含烘干)",
+      "name": "烘干时长(静态)",
       "unit": "min",
       "device_class": "duration",
       "icon": "mdi:timer-outline",
       "decode": "hhmm",
-      "enabled": true,
-      "note": "烘干阶段有值（如48=48分钟），洗涤阶段恒2040，解码=hhmm"
+      "enabled": false,
+      "note": "烘干阶段固定为48分钟，App也不显示倒计时，固件不提供剩余时间"
     },
     "SetWorkTime": {
       "name": "设定工作时间",
