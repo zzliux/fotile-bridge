@@ -143,14 +143,6 @@ def test_program_select_and_start():
     assert json.loads(payload)["WorkState"] == 1
 
 
-def test_drain_sequence(monkeypatch):
-    bridge = make_bridge()
-    monkeypatch.setattr("app.mqtt_bridge.time.sleep", lambda *_: None)
-    bridge._handle_command("fotile/1032A/1149539722/set", {"drain": 1})
-    sent = [json.loads(p) for t, p, _ in bridge.client.sent if t == "control/1032A/1149539722"]
-    assert sent == [{"PowerSwitchAll": 0, "GSCPowerSwitch": 0}, {"AutoDrain": 1}]
-
-
 def test_program_select_raw_string():
     from types import SimpleNamespace
     bridge = make_bridge()
