@@ -217,3 +217,11 @@ def test_current_program_shows_only_when_running():
     t = d._template(Field(key="WorkMode", decode="program", options={"2": "超净洗"}))
     assert "WorkState in [2, 6]" in t
     assert "超净洗" in t
+
+
+def test_drain_without_power_off(monkeypatch):
+    bridge = make_bridge()
+    monkeypatch.setattr("app.mqtt_bridge.time.sleep", lambda *_: None)
+    bridge._handle_command("fotile/1032A/1149539722/set", {"drain": 1})
+    sent = [json.loads(p) for t, p, _ in bridge.client.sent if t == "control/1032A/1149539722"]
+    assert sent == [{"AutoDrain": 1}]
