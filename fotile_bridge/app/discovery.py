@@ -123,9 +123,6 @@ class Discovery:
                 "command_topic": f"fotile/{product_id}/{device_id}/program",
                 "retain": True,
                 "options": list(programs.keys()),
-                "state_topic": state_topic,
-                # 设备上报 WorkMode 就是当前程序，回写给 select
-                "value_template": "{{ {" + mapping + "}.get(value_json.WorkMode | string, '未知') }}",
                 "icon": "mdi:dishwasher",
                 "device": device,
             }

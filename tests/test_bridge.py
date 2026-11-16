@@ -200,10 +200,11 @@ def test_storage_param_used_at_start():
     assert payload["WorkMode"] == 2
 
 
-def test_program_select_has_state_mapping():
+def test_program_select_is_optimistic_and_sensor_maps_program():
     bridge = make_bridge()
     bridge._handle_sync("sync/1032A/1149539722", {"WorkMode": 2})
-    cfg = {t: p for t, p, _ in bridge.client.sent if t.endswith("_program/config")}
-    payload = json.loads(next(iter(cfg.values())))
-    assert payload.get("state_topic")
-    assert "超净洗" in payload["value_template"]
+    sent = dict((t, p) for t, p, _ in bridge.client.sent)
+    sel = json.loads(sent["homeassistant/select/fotile_1032A_1149539722_program/config"])
+    assert "state_topic" not in sel
+    cur = json.loads(sent["homeassistant/sensor/fotile_1032A_1149539722_WorkMode/config"])
+    assert "超净洗" in cur["value_template"]
