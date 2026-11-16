@@ -113,6 +113,9 @@ class Discovery:
         self._cleanup_hidden(product_id, device_id)
         if programs:
             node = f"fotile_{product_id}_{device_id}_program"
+            mapping = ", ".join(
+                f"'{int(v.get('WorkMode', 0))}': '{name}'" for name, v in programs.items()
+            )
             payload = {
                 "name": "碗碟程序",
                 "unique_id": node,
@@ -120,6 +123,9 @@ class Discovery:
                 "command_topic": f"fotile/{product_id}/{device_id}/program",
                 "retain": True,
                 "options": list(programs.keys()),
+                "state_topic": state_topic,
+                # 设备上报 WorkMode 就是当前程序，回写给 select
+                "value_template": "{{ {" + mapping + "}.get(value_json.WorkMode | string, '未知') }}",
                 "icon": "mdi:dishwasher",
                 "device": device,
             }

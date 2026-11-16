@@ -198,3 +198,12 @@ def test_storage_param_used_at_start():
     payload = json.loads(bridge.client.sent[-1][1])
     assert payload["StoreTotalTime"] == 42
     assert payload["WorkMode"] == 2
+
+
+def test_program_select_has_state_mapping():
+    bridge = make_bridge()
+    bridge._handle_sync("sync/1032A/1149539722", {"WorkMode": 2})
+    cfg = {t: p for t, p, _ in bridge.client.sent if t.endswith("_program/config")}
+    payload = json.loads(next(iter(cfg.values())))
+    assert payload.get("state_topic")
+    assert "超净洗" in payload["value_template"]
