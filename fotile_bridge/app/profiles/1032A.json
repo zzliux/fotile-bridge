@@ -108,12 +108,13 @@
       "note": "小时*256+分钟；decode=hhmm"
     },
     "StRemTime": {
-      "name": "剩余总时间(原始值)",
+      "name": "剩余总时间(含烘干)",
       "unit": "min",
       "device_class": "duration",
       "icon": "mdi:timer-outline",
-      "enabled": false,
-      "note": "恒为2040，非倒计时，未确认，保持隐藏"
+      "decode": "hhmm",
+      "enabled": true,
+      "note": "烘干阶段有值（如48=48分钟），洗涤阶段恒2040，解码=hhmm"
     },
     "SetWorkTime": {
       "name": "设定工作时间",
