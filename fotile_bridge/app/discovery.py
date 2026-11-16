@@ -28,7 +28,31 @@ class Discovery:
 
     # ---- 对外 ----
 
+    def _finish(self, payload: dict) -> dict:
+        """给每个实体挂上设备可用性主题，设备掉线时 HA 会变灰。"""
+        avail = getattr(self, "_avail_topic", None)
+        if avail:
+            payload.setdefault("availability_topic", avail)
+            payload.setdefault("payload_available", "online")
+            payload.setdefault("payload_not_available", "offline")
+        return payload
+
+    def _publish_online(self, device: dict, product_id: str, device_id: str) -> None:
+        node = f"fotile_{product_id}_{device_id}_online"
+        payload = {
+            "name": "在线",
+            "unique_id": node,
+            "object_id": node,
+            "device_class": "connectivity",
+            "state_topic": f"fotile/availability/{device_id}",
+            "payload_on": "online",
+            "payload_off": "offline",
+            "device": device,
+        }
+        self.publish(f"homeassistant/binary_sensor/{node}/config", json.dumps(payload, ensure_ascii=False), True)
+
     def ensure(self, profile: Profile, device_id: str, state: Dict[str, object]) -> None:
+        self._avail_topic = f"fotile/availability/{device_id}"
         self._build(
             product_id=profile.product_id,
             device_id=device_id,
@@ -43,6 +67,7 @@ class Discovery:
         )
 
     def ensure_generic(self, product_id: str, device_id: str, state: Dict[str, object]) -> None:
+        self._avail_topic = f"fotile/availability/{device_id}"
         self._build(
             product_id=product_id,
             device_id=device_id,
@@ -82,6 +107,7 @@ class Discovery:
             "model": model or product_id,
         }
         state_topic = f"fotile/state/{product_id}/{device_id}"
+        self._publish_online(device, product_id, device_id)
         known = {f.key for f in fields}
         published = 0
 
@@ -126,7 +152,7 @@ class Discovery:
                 "icon": "mdi:dishwasher",
                 "device": device,
             }
-            self.publish(f"homeassistant/select/{node}/config", json.dumps(payload, ensure_ascii=False), True)
+            self.publish(f"homeassistant/select/{node}/config", json.dumps(self._finish(payload), ensure_ascii=False), True)
 
         for name, spec in commands.items():
             if not isinstance(spec, dict) or "button" not in spec:
@@ -142,7 +168,7 @@ class Discovery:
                 "icon": btn.get("icon", "mdi:gesture-tap-button"),
                 "device": device,
             }
-            self.publish(f"homeassistant/button/{node}/config", json.dumps(payload, ensure_ascii=False), True)
+            self.publish(f"homeassistant/button/{node}/config", json.dumps(self._finish(payload), ensure_ascii=False), True)
 
         self._done.add(key)
         LOG.info("discovery published for %s (%d entities)", key, published)
@@ -171,7 +197,7 @@ class Discovery:
             payload["enabled_by_default"] = False
         self.publish(
             f"homeassistant/{field.entity}/{node}/config",
-            json.dumps(payload, ensure_ascii=False),
+            json.dumps(self._finish(payload), ensure_ascii=False),
             True,
         )
 
@@ -251,7 +277,7 @@ class Discovery:
                 base["mode"] = "box"
                 if control.get("unit"):
                     base["unit_of_measurement"] = control["unit"]
-                self.publish(f"homeassistant/number/{node}/config", json.dumps(base, ensure_ascii=False), True)
+                self.publish(f"homeassistant/number/{node}/config", json.dumps(self._finish(base), ensure_ascii=False), True)
                 continue
             if kind == "switch":
                 base["payload_on"] = json.dumps({field: control.get("on", 1)})
@@ -281,7 +307,7 @@ class Discovery:
                 if control.get("unit"):
                     base["unit_of_measurement"] = control["unit"]
                 topic = f"homeassistant/number/{node}/config"
-            self.publish(topic, json.dumps(base, ensure_ascii=False), True)
+            self.publish(topic, json.dumps(self._finish(base), ensure_ascii=False), True)
 
     def _cleanup_hidden(self, product_id: str, device_id: str) -> None:
         """把旧版本已经注册、现在默认隐藏的实体的 discovery 清空，让 HA 移除它们。"""
@@ -317,7 +343,7 @@ class Discovery:
                 "icon": item.get("icon", "mdi:form-textbox"),
                 "device": device,
             }
-            self.publish(f"homeassistant/text/{node}/config", json.dumps(payload, ensure_ascii=False), True)
+            self.publish(f"homeassistant/text/{node}/config", json.dumps(self._finish(payload), ensure_ascii=False), True)
 
     def _publish_appointment(self, device: dict, state_topic: str, product_id: str, device_id: str) -> None:
         node = f"fotile_{product_id}_{device_id}_appointment"
@@ -338,7 +364,7 @@ class Discovery:
             "enabled_by_default": False,
             "device": device,
         }
-        self.publish(f"homeassistant/number/{node}/config", json.dumps(payload, ensure_ascii=False), True)
+        self.publish(f"homeassistant/number/{node}/config", json.dumps(self._finish(payload), ensure_ascii=False), True)
 
     def _publish_drain_button(self, device: dict, product_id: str, device_id: str) -> None:
         node = f"fotile_{product_id}_{device_id}_drain"
@@ -352,7 +378,7 @@ class Discovery:
             "enabled_by_default": False,
             "device": device,
         }
-        self.publish(f"homeassistant/button/{node}/config", json.dumps(payload, ensure_ascii=False), True)
+        self.publish(f"homeassistant/button/{node}/config", json.dumps(self._finish(payload), ensure_ascii=False), True)
 
     def _publish_power_switch(self, device: dict, state_topic: str, product_id: str, device_id: str, power_key: str) -> None:
         node = f"fotile_{product_id}_{device_id}_power"
@@ -372,6 +398,6 @@ class Discovery:
         }
         self.publish(
             f"homeassistant/switch/{node}/config",
-            json.dumps(payload, ensure_ascii=False),
+            json.dumps(self._finish(payload), ensure_ascii=False),
             True,
         )

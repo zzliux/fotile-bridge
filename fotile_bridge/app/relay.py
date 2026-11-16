@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 import json
 import logging
 import socket
@@ -97,6 +98,7 @@ class MqttRelay:
         self._cloud_creds = None
         self._cloud_used = None
         self._cloud_lock = asyncio.Lock()
+        self._startup_deadline = time.monotonic() + 5
 
     async def start(self) -> None:
         self.server = await asyncio.start_server(self._handle, "0.0.0.0", self.cfg.relay_port)
@@ -108,7 +110,12 @@ class MqttRelay:
         import paho.mqtt.client as mqtt
 
         client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id="fotile_relay_ctl")
-        client.on_connect = lambda c, u, f, rc, p=None: c.subscribe("control/#", qos=0)
+        def _on_connect(c, u, f, rc, p=None):
+            c.subscribe("control/#", qos=0)
+            # 启动时把残留的 online 清掉，避免 add-on 重启后误报在线
+            c.subscribe("fotile/availability/#", qos=0)
+
+        client.on_connect = _on_connect
         client.on_message = self._on_local_control
         client.connect("127.0.0.1", self.cfg.mqtt_port, keepalive=30)
         client.loop_start()
@@ -117,6 +124,10 @@ class MqttRelay:
 
     def _on_local_control(self, client, userdata, msg):
         payload = msg.payload.decode("utf-8", "replace")
+        if msg.topic.startswith("fotile/availability/") and msg.retain:
+            if payload == "online" and time.monotonic() < self._startup_deadline:
+                self.local_publish(msg.topic, "offline", True)
+            return
         fut = asyncio.run_coroutine_threadsafe(self.inject(msg.topic, payload), self._loop)
         fut.add_done_callback(lambda f: f.exception() and LOG.warning("inject failed: %s", f.exception()))
 
@@ -146,6 +157,18 @@ class MqttRelay:
         self.device_writer = writer
         splitter_dev = MqttSplitter()
         splitter_up = MqttSplitter()
+        state = {"did": None, "last": time.monotonic()}
+
+        def mark_online(did: str) -> None:
+            state["did"] = did
+            state["last"] = time.monotonic()
+            self._publish_avail(did, "online")
+
+        def mark_offline() -> None:
+            did = state.get("did")
+            if did:
+                self._publish_avail(did, "offline")
+                state["did"] = None
 
         async def dev_to_up():
             while True:
@@ -155,9 +178,16 @@ class MqttRelay:
                     break
                 if not data:
                     break
+                state["last"] = time.monotonic()
                 for pkt in splitter_dev.feed(data):
                     if self._consume_puback(pkt):
                         continue
+                    creds = self._parse_connect(pkt)
+                    if creds and creds[0]:
+                        try:
+                            mark_online(creds[0].decode())
+                        except UnicodeDecodeError:
+                            pass
                     self._tap_device(pkt)
                     up_writer.write(pkt)
                     await up_writer.drain()
@@ -170,12 +200,27 @@ class MqttRelay:
                     break
                 if not data:
                     break
+                state["last"] = time.monotonic()
                 for pkt in splitter_up.feed(data):
                     self._tap_cloud(pkt)
                     async with self._lock:
                         writer.write(pkt)
                         await writer.drain()
 
+        async def watchdog():
+            # 设备 Wi-Fi 掉线时 TCP 可能没有 FIN，靠静默超时判定离线
+            while True:
+                await asyncio.sleep(15)
+                if time.monotonic() - state["last"] > 180:
+                    LOG.warning("relay device silent for 180s, closing connection")
+                    try:
+                        writer.close()
+                        up_writer.close()
+                    except Exception:  # noqa: BLE001
+                        pass
+                    return
+
+        wd = asyncio.create_task(watchdog())
         try:
             await asyncio.gather(dev_to_up(), up_to_dev())
         except (ConnectionResetError, OSError):
@@ -185,6 +230,8 @@ class MqttRelay:
         except Exception as exc:  # noqa: BLE001
             LOG.warning("relay connection error: %s", exc)
         finally:
+            wd.cancel()
+            mark_offline()
             self._active = max(0, self._active - 1)
             self.device_writer = None
             for w in (writer, up_writer):
@@ -193,6 +240,13 @@ class MqttRelay:
                 except Exception:  # noqa: BLE001
                     pass
             LOG.info("relay connection closed")
+
+    def _publish_avail(self, did: str, value: str) -> None:
+        try:
+            self.local_publish(f"fotile/availability/{did}", value, True)
+            LOG.info("device %s -> %s", did, value)
+        except Exception as exc:  # noqa: BLE001
+            LOG.warning("availability publish failed: %s", exc)
 
     def _parse_connect(self, pkt: bytes):
         """从设备的 CONNECT 里取出云端账号密码，供控制发布使用。"""

@@ -217,3 +217,12 @@ def test_drain_without_power_off(monkeypatch):
     bridge._handle_command("fotile/1032A/1149539722/set", {"drain": 1})
     sent = [json.loads(p) for t, p, _ in bridge.client.sent if t == "control/1032A/1149539722"]
     assert sent == [{"AutoDrain": 1}]
+
+
+def test_entities_have_availability_topic():
+    bridge = make_bridge()
+    bridge._handle_sync("sync/1032A/1149539722", {"PowerSwitchAll": 0, "WorkState": 0})
+    cfgs = [json.loads(p) for t, p, _ in bridge.client.sent if t.endswith("/config") and p]
+    with_avail = [c for c in cfgs if c.get("availability_topic")]
+    assert with_avail
+    assert all(c["availability_topic"] == "fotile/availability/1149539722" for c in with_avail)
