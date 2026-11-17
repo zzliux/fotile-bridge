@@ -184,10 +184,11 @@
       "decode": "hhmm"
     },
     "GSCDoorLockSta": {
-      "name": "蒸汽清洁门锁",
+      "name": "果蔬篮",
       "entity": "binary_sensor",
-      "icon": "mdi:door-closed-lock",
-      "enabled": false
+      "icon": "mdi:basket",
+      "enabled": true,
+      "note": "1=插入果蔬篮，0=拔出"
     },
     "GSCAutoDrain": {
       "name": "蒸汽清洁自动排水",
@@ -416,6 +417,10 @@
       },
       "payload_off": {
         "GSCAutoDrain": 0
+      },
+      "available_when": {
+        "field": "GSCDoorLockSta",
+        "value": 1
       }
     }
   ],
@@ -470,5 +475,6 @@
         "icon": "mdi:stop"
       }
     ]
-  }
+  },
+  "basketField": "GSCDoorLockSta"
 }

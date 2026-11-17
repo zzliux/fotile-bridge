@@ -338,3 +338,25 @@ def test_gsc_fields_are_visible():
     topics = [t for t, _, _ in bridge.client.sent]
     for key in ("GSCWorkSta", "GSCClRemT", "GSCWorkMode", "GSCErrorNum"):
         assert f"homeassistant/sensor/fotile_1032A_1149539722_{key}/config" in topics
+
+
+def test_basket_field_exposed_and_gates_controls():
+    bridge = make_bridge()
+    bridge._handle_sync("sync/1032A/1149539722", {"GSCDoorLockSta": 1, "GSCAutoDrain": 0, "SetAppointmentTime": 30})
+    cfgs = {t: json.loads(p) for t, p, _ in bridge.client.sent if t.endswith("/config") and p}
+
+    basket = cfgs["homeassistant/binary_sensor/fotile_1032A_1149539722_GSCDoorLockSta/config"]
+    assert basket["name"] == "果蔬篮"
+    assert basket["payload_on"] == "1" and basket["payload_off"] == "0"
+
+    # POP 排水开关：只有篮在位（1）才可用
+    pop = cfgs["homeassistant/switch/fotile_1032A_1149539722_gscautodrain/config"]
+    assert pop["availability"][0]["payload_available"] == "yes"
+    assert "GSCDoorLockSta" in pop["availability"][0]["value_template"]
+    assert "== 1" in pop["availability"][0]["value_template"]
+
+    # 碗碟程序选择与“启动所选程序”：篮在位时不可用
+    select = cfgs["homeassistant/select/fotile_1032A_1149539722_program/config"]
+    assert "== 0" in select["availability"][0]["value_template"]
+    start = cfgs["homeassistant/button/fotile_1032A_1149539722_btn_start_program/config"]
+    assert "== 0" in start["availability"][0]["value_template"]

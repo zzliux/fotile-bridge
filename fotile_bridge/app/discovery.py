@@ -66,6 +66,7 @@ class Discovery:
             text_controls=profile.text_controls,
             switches=profile.switches,
             gsc=profile.gsc,
+            basket_field=profile.basket_field,
         )
 
     def ensure_generic(self, product_id: str, device_id: str, state: Dict[str, object]) -> None:
@@ -83,9 +84,23 @@ class Discovery:
             text_controls=[],
             switches=[],
             gsc={},
+            basket_field="",
         )
 
     # ---- 内部 ----
+
+    @staticmethod
+    def _field_availability(state_topic: str, field: str, expected: int) -> list:
+        """按状态里的某个 0/1 字段决定实体可用性。"""
+        return [{
+            "topic": state_topic,
+            "value_template": (
+                "{{ 'yes' if (value_json.%s | default(-1) | int(-1)) == %d else 'no' }}"
+                % (field, expected)
+            ),
+            "payload_available": "yes",
+            "payload_not_available": "no",
+        }]
 
     def _build(
         self,
@@ -101,6 +116,7 @@ class Discovery:
         text_controls: List[dict],
         switches: List[dict],
         gsc: Dict[str, dict],
+        basket_field: str,
     ) -> None:
         key = f"{product_id}:{device_id}"
         if key in self._done:
@@ -161,6 +177,9 @@ class Discovery:
                 "icon": "mdi:dishwasher",
                 "device": device,
             }
+            if basket_field:
+                # 插入果蔬篮时设备不允许启动碗碟程序
+                payload["availability"] = self._field_availability(state_topic, basket_field, 0)
             self.publish(f"homeassistant/select/{node}/config", json.dumps(self._finish(payload), ensure_ascii=False), True)
 
         for name, spec in commands.items():
@@ -177,6 +196,8 @@ class Discovery:
                 "icon": btn.get("icon", "mdi:gesture-tap-button"),
                 "device": device,
             }
+            if basket_field and name == "start_program":
+                payload["availability"] = self._field_availability(state_topic, basket_field, 0)
             self.publish(f"homeassistant/button/{node}/config", json.dumps(self._finish(payload), ensure_ascii=False), True)
 
         self._done.add(key)
@@ -440,6 +461,11 @@ class Discovery:
             "enabled_by_default": bool(spec.get("enabled", True)),
             "device": device,
         }
+        cond = spec.get("available_when") or {}
+        if cond.get("field") and state_topic:
+            payload["availability"] = self._field_availability(
+                state_topic, str(cond["field"]), int(cond.get("value", 1))
+            )
         self.publish(
             f"homeassistant/switch/{node}/config",
             json.dumps(self._finish(payload), ensure_ascii=False),
