@@ -436,7 +436,7 @@
     }
   ],
   "gsc": {
-    "name": "果蔬篮程序",
+    "name": "果蔬生鲜程序",
     "icon": "mdi:basket",
     "programs": {
       "果蔬清洗-轻": {
@@ -467,7 +467,7 @@
     "buttons": [
       {
         "key": "gsc_start",
-        "name": "启动果蔬生清洗程序",
+        "name": "启动果蔬生鲜清洗程序",
         "icon": "mdi:play"
       },
       {
