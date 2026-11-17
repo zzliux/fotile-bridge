@@ -1,5 +1,5 @@
 name: Fotile Bridge
-version: "0.11.7"
+version: "0.11.8"
 slug: fotile_bridge
 description: 方太智能家电 ↔ Home Assistant 桥接（云端 MQTT 中转 + 本地实体）
 url: https://github.com/zzliux/fotile-bridge

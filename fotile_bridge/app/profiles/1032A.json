@@ -298,7 +298,7 @@
     },
     "start_program": {
       "button": {
-        "name": "启动所选程序"
+        "name": "启动碗碟清洗程序"
       },
       "program": true
     }
@@ -467,7 +467,7 @@
     "buttons": [
       {
         "key": "gsc_start",
-        "name": "启动所选",
+        "name": "启动果蔬生清洗程序",
         "icon": "mdi:play"
       },
       {

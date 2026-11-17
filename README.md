@@ -182,8 +182,8 @@ ssh root@192.168.31.2 'nft list table ip fotile_relay | grep counter'
 
 | 类别 | 实体 |
 |---|---|
-| 控制 | 电源、碗碟程序（13 种）、启动所选程序、开始/继续、暂停、取消、排水（开关） |
-| 果蔬篮（PopWash） | 果蔬篮程序（8 种）、启动所选、暂停、继续、取消、果蔬排水（POP） |
+| 控制 | 电源、碗碟程序（13 种）、启动碗碟清洗程序、开始/继续、暂停、取消、排水（开关） |
+| 果蔬篮（PopWash） | 果蔬篮程序（8 种）、启动果蔬生清洗程序、暂停、继续、取消、果蔬排水（POP） |
 | 果蔬篮监控 | 果蔬篮在位、状态、剩余时间、当前程序、故障码 |
 | 监控 | 剩余时间、工作状态（中文）、运行状态、门锁、故障码、提醒、保洁存储(天) |
 | 默认隐藏 | 预约时间、工作模式/工作状态原始值（`show_experimental: true` 才显示） |
@@ -242,7 +242,7 @@ ssh root@192.168.31.2 'nft list table ip fotile_relay | grep counter'
 
 | 动作 | 报文 |
 | --- | --- |
-| 启动所选 | `{"GSCWorkMode":N,"GSCWorkSta":1,"PowerSwitchAll":1}` |
+| 启动果蔬生清洗程序 | `{"GSCWorkMode":N,"GSCWorkSta":1,"PowerSwitchAll":1}` |
 | 暂停 | `{"GSCWorkSta":2}` |
 | 继续 | `{"GSCWorkSta":1}` |
 | 取消 | `{"GSCWorkSta":0}` |
@@ -271,7 +271,7 @@ HA 里对应 `binary_sensor.*_GSCDoorLockSta`（名称「果蔬篮」）。
 有了这个标志，HA 侧做了两处联动，行为和 App 一致：
 
 - **果蔬排水（POP）开关**：只有篮在位（=1）时才可用，拔下后变 `unavailable`
-- **碗碟程序选择** + **启动所选程序**按钮：篮在位时变 `unavailable`，插入篮后无法再启动碗碟程序
+- **碗碟程序选择** + **启动碗碟清洗程序**按钮：篮在位时变 `unavailable`，插入篮后无法再启动碗碟程序
 
 > 其余碗碟按钮（开始/继续、暂停、取消）不做限制，因为篮在位时本来也没有碗碟程序在跑。
 
@@ -283,19 +283,19 @@ HA 里对应 `binary_sensor.*_GSCDoorLockSta`（名称「果蔬篮」）。
 | --- | --- |
 | 排水（普通） | `PowerSwitchAll = 0`（关机） |
 | 果蔬排水（POP） | `GSCDoorLockSta = 1`（果蔬篮在位） |
-| 碗碟程序选择 / 启动所选程序 / 预约时间 | `WorkState ∈ {1,3}`（开机且未运行）且 `GSCDoorLockSta = 0` |
+| 碗碟程序选择 / 启动碗碟清洗程序 / 预约时间 | `WorkState ∈ {1,3}`（开机且未运行）且 `GSCDoorLockSta = 0` |
 | 保洁存储(天) | `WorkState ∈ {1,3}`（开机且未运行） |
 | 开始/继续（碗碟） | `WorkState ∈ {1,3}` |
 | 暂停（碗碟） | `WorkState = 2`（运行中） |
 | 取消（碗碟） | `WorkState ∈ {2,3}`（运行中或暂停） |
-| 果蔬篮程序选择 / 启动所选（GSC） | `GSCWorkSta ∈ {1,3}` 且 `GSCDoorLockSta = 1` |
+| 果蔬篮程序选择 / 启动果蔬生清洗程序 | `GSCWorkSta ∈ {1,3}` 且 `GSCDoorLockSta = 1` |
 | 果蔬篮暂停（GSC） | `GSCWorkSta = 2` |
 | 果蔬篮继续（GSC） | `GSCWorkSta = 3` |
 | 果蔬篮取消（GSC） | `GSCWorkSta ∈ {2,3}` |
 
 要点：
 
-- **程序设置（程序选择、启动所选、预约、保洁存储）只在开机且未运行时可改**：
+- **程序设置（程序选择、启动程序、预约、保洁存储）只在开机且未运行时可改**：
   启动后禁用，暂停后恢复（`WorkState = 3` 也算可改）
 - **排水只在关机时可用**（这也解释了为什么之前关机状态下点排水能生效）
 - 插入果蔬篮后碗碟程序相关实体全部不可用，拔出恢复
