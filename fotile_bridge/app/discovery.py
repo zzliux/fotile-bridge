@@ -31,10 +31,20 @@ class Discovery:
     def _finish(self, payload: dict) -> dict:
         """给每个实体挂上设备可用性主题，设备掉线时 HA 会变灰。"""
         avail = getattr(self, "_avail_topic", None)
-        if avail:
-            payload.setdefault("availability_topic", avail)
-            payload.setdefault("payload_available", "online")
-            payload.setdefault("payload_not_available", "offline")
+        if not avail:
+            return payload
+        if payload.get("availability"):
+            # 已有条件列表时不能再带 availability_topic（HA 互斥），把在线状态并入列表
+            payload.setdefault("availability_mode", "all")
+            payload["availability"].append({
+                "topic": avail,
+                "payload_available": "online",
+                "payload_not_available": "offline",
+            })
+            return payload
+        payload.setdefault("availability_topic", avail)
+        payload.setdefault("payload_available", "online")
+        payload.setdefault("payload_not_available", "offline")
         return payload
 
     def _publish_online(self, device: dict, product_id: str, device_id: str) -> None:
@@ -190,7 +200,7 @@ class Discovery:
             # 运行中不允许改程序设置；插入果蔬篮时设备也不允许启动碗碟程序
             avail = self._availability(
                 state_topic,
-                ("WorkState", [0, 1]),
+                ("WorkState", [1, 3]),
                 (basket_field, [0]) if basket_field else None,
             )
             if avail:
@@ -213,9 +223,9 @@ class Discovery:
             }
             rules = {
                 # 启动程序：待机/关机时可设置；运行或暂停时不行
-                "start_program": [("WorkState", [0, 1]), (basket_field, [0]) if basket_field else None],
-                # 开始/继续：关机、待机、暂停时可用
-                "start": [("WorkState", [0, 1, 3])],
+                "start_program": [("WorkState", [1, 3]), (basket_field, [0]) if basket_field else None],
+                # 开始/继续：开机后（待机或暂停）可用
+                "start": [("WorkState", [1, 3])],
                 # 暂停：仅运行中
                 "pause": [("WorkState", [2])],
                 # 取消：运行或暂停中
@@ -325,6 +335,11 @@ class Discovery:
             }
             if control.get("icon"):
                 base["icon"] = control["icon"]
+            cond = control.get("available_when") or {}
+            if cond.get("field"):
+                avail = self._availability(state_topic, (str(cond["field"]), cond.get("values") or [1]))
+                if avail:
+                    base["availability"] = avail
             if control.get("param"):
                 base.pop("state_topic", None)
                 base.pop("value_template", None)
@@ -423,7 +438,7 @@ class Discovery:
             "enabled_by_default": False,
             "device": device,
         }
-        avail = self._availability(state_topic, ("WorkState", [0, 1]))
+        avail = self._availability(state_topic, ("WorkState", [1, 3]))
         if avail:
             payload["availability"] = avail
         self.publish(f"homeassistant/number/{node}/config", json.dumps(self._finish(payload), ensure_ascii=False), True)
@@ -450,7 +465,7 @@ class Discovery:
         basket = gsc.get("basket_field") or "GSCDoorLockSta"
         avail = self._availability(
             state_topic,
-            ("GSCWorkSta", [0, 1]),
+            ("GSCWorkSta", [1, 3]),
             (basket, [1]),
         )
         if avail:
@@ -482,7 +497,7 @@ class Discovery:
             if key == "gsc_start":
                 avail = self._availability(
                     state_topic,
-                    ("GSCWorkSta", [0, 1]),
+                    ("GSCWorkSta", [1, 3]),
                     (basket, [1]),
                 )
             else:

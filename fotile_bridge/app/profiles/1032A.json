@@ -313,7 +313,14 @@
       "unit": "d",
       "icon": "mdi:calendar-range",
       "note": "1-99天；部分程序不支持存储，启动时会发0",
-      "param": true
+      "param": true,
+      "available_when": {
+        "field": "WorkState",
+        "values": [
+          1,
+          3
+        ]
+      }
     }
   ],
   "programs": {

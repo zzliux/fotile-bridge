@@ -283,18 +283,20 @@ HA 里对应 `binary_sensor.*_GSCDoorLockSta`（名称「果蔬篮」）。
 | --- | --- |
 | 排水（普通） | `PowerSwitchAll = 0`（关机） |
 | 果蔬排水（POP） | `GSCDoorLockSta = 1`（果蔬篮在位） |
-| 碗碟程序选择 / 启动所选程序 / 预约时间 | `WorkState ∈ {0,1}` 且 `GSCDoorLockSta = 0` |
-| 开始/继续（碗碟） | `WorkState ∈ {0,1,3}` |
+| 碗碟程序选择 / 启动所选程序 / 预约时间 | `WorkState ∈ {1,3}`（开机且未运行）且 `GSCDoorLockSta = 0` |
+| 保洁存储(天) | `WorkState ∈ {1,3}`（开机且未运行） |
+| 开始/继续（碗碟） | `WorkState ∈ {1,3}` |
 | 暂停（碗碟） | `WorkState = 2`（运行中） |
 | 取消（碗碟） | `WorkState ∈ {2,3}`（运行中或暂停） |
-| 果蔬篮程序选择 / 启动所选（GSC） | `GSCWorkSta ∈ {0,1}` 且 `GSCDoorLockSta = 1` |
+| 果蔬篮程序选择 / 启动所选（GSC） | `GSCWorkSta ∈ {1,3}` 且 `GSCDoorLockSta = 1` |
 | 果蔬篮暂停（GSC） | `GSCWorkSta = 2` |
 | 果蔬篮继续（GSC） | `GSCWorkSta = 3` |
 | 果蔬篮取消（GSC） | `GSCWorkSta ∈ {2,3}` |
 
 要点：
 
-- **程序运行/暂停期间不能改程序设置**（选择、启动、预约都会被禁用）
+- **程序设置（程序选择、启动所选、预约、保洁存储）只在开机且未运行时可改**：
+  启动后禁用，暂停后恢复（`WorkState = 3` 也算可改）
 - **排水只在关机时可用**（这也解释了为什么之前关机状态下点排水能生效）
 - 插入果蔬篮后碗碟程序相关实体全部不可用，拔出恢复
 

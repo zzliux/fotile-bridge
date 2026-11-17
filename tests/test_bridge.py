@@ -358,10 +358,10 @@ def test_basket_field_exposed_and_gates_controls():
     # 碗碟程序选择与“启动所选程序”：运行中或篮在位时不可用
     select = cfgs["homeassistant/select/fotile_1032A_1149539722_program/config"]
     assert "WorkState" in select["availability"][0]["value_template"]
-    assert "in [0, 1]" in select["availability"][0]["value_template"]
+    assert "in [1, 3]" in select["availability"][0]["value_template"]
     assert "GSCDoorLockSta" in select["availability"][0]["value_template"]
     start = cfgs["homeassistant/button/fotile_1032A_1149539722_btn_start_program/config"]
-    assert "in [0, 1]" in start["availability"][0]["value_template"]
+    assert "in [1, 3]" in start["availability"][0]["value_template"]
 
 
 def test_runtime_gating_rules():
@@ -375,8 +375,8 @@ def test_runtime_gating_rules():
     # 排水：关机（PowerSwitchAll=0）才可用
     assert "PowerSwitchAll" in tmpl("homeassistant/switch/fotile_1032A_1149539722_autodrain/config")
     assert "in [0]" in tmpl("homeassistant/switch/fotile_1032A_1149539722_autodrain/config")
-    # 开始/继续：关机、待机、暂停
-    assert "in [0, 1, 3]" in tmpl("homeassistant/button/fotile_1032A_1149539722_btn_start/config")
+    # 开始/继续：开机后（待机或暂停）
+    assert "in [1, 3]" in tmpl("homeassistant/button/fotile_1032A_1149539722_btn_start/config")
     # 暂停：仅运行中
     assert "in [2]" in tmpl("homeassistant/button/fotile_1032A_1149539722_btn_pause/config")
     # 取消：运行或暂停
@@ -384,3 +384,14 @@ def test_runtime_gating_rules():
     # 果蔬篮：暂停仅运行中，取消运行/暂停
     assert "in [2]" in tmpl("homeassistant/button/fotile_1032A_1149539722_gsc_pause/config")
     assert "in [2, 3]" in tmpl("homeassistant/button/fotile_1032A_1149539722_gsc_stop/config")
+
+
+def test_store_total_time_gated_and_availability_not_conflicting():
+    bridge = make_bridge()
+    bridge._handle_sync("sync/1032A/1149539722", {"WorkState": 1, "StoreTotalTime": 1})
+    cfgs = {t: json.loads(p) for t, p, _ in bridge.client.sent if t.endswith("/config") and p}
+    cfg = cfgs["homeassistant/number/fotile_1032A_1149539722_StoreTotalTime_number/config"]
+    assert "in [1, 3]" in cfg["availability"][0]["value_template"]
+    # 有 availability 列表时不能再出现 availability_topic（HA 会拒绝）
+    assert "availability_topic" not in cfg
+    assert cfg["availability"][-1]["topic"] == "fotile/availability/1149539722"
