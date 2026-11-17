@@ -398,3 +398,14 @@ def test_store_total_time_gated_and_availability_not_conflicting():
     # 有 availability 列表时不能再出现 availability_topic（HA 会拒绝）
     assert "availability_topic" not in cfg
     assert cfg["availability"][-1]["topic"] == "fotile/availability/1149539722"
+
+
+def test_gated_control_has_readonly_mirror():
+    bridge = make_bridge()
+    bridge._handle_sync("sync/1032A/1149539722", {"WorkState": 1, "StoreTotalTime": 1})
+    cfgs = {t: json.loads(p) for t, p, _ in bridge.client.sent if t.endswith("/config") and p}
+    ro = cfgs["homeassistant/sensor/fotile_1032A_1149539722_StoreTotalTime_readonly/config"]
+    assert ro["name"] == "保洁存储(天)（只读）"
+    # 镜像不带条件可用性，只有设备在线这一层
+    assert "availability" not in ro
+    assert ro["availability_topic"] == "fotile/availability/1149539722"

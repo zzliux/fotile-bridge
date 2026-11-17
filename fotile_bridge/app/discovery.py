@@ -345,6 +345,24 @@ class Discovery:
                 avail = self._availability(state_topic, *conds)
                 if avail:
                     base["availability"] = avail
+                    # 操作类实体被禁用期间，另发一个只读镜像，保证监控数据不断档
+                    ro_node = f"fotile_{product_id}_{device_id}_{field}_readonly"
+                    ro = {
+                        "name": f"{control.get('name', field)}（只读）",
+                        "unique_id": ro_node,
+                        "object_id": ro_node,
+                        "state_topic": state_topic,
+                        "value_template": f"{{{{ value_json.{field} }}}}",
+                        "icon": control.get("icon", "mdi:gauge"),
+                        "device": device,
+                    }
+                    if control.get("unit"):
+                        ro["unit_of_measurement"] = control["unit"]
+                    self.publish(
+                        f"homeassistant/sensor/{ro_node}/config",
+                        json.dumps(self._finish(ro), ensure_ascii=False),
+                        True,
+                    )
             if control.get("param"):
                 base.pop("state_topic", None)
                 base.pop("value_template", None)
