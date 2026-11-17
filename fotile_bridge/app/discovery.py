@@ -224,8 +224,8 @@ class Discovery:
             rules = {
                 # 启动程序：待机/关机时可设置；运行或暂停时不行
                 "start_program": [("WorkState", [1, 3]), (basket_field, [0]) if basket_field else None],
-                # 开始/继续：开机后（待机或暂停）可用
-                "start": [("WorkState", [1, 3])],
+                # 继续：仅暂停中可用（启动之后再出现）
+                "start": [("WorkState", [3])],
                 # 暂停：仅运行中
                 "pause": [("WorkState", [2])],
                 # 取消：运行或暂停中

@@ -268,7 +268,7 @@
     },
     "start": {
       "button": {
-        "name": "开始/继续"
+        "name": "继续"
       },
       "sequence": [
         {

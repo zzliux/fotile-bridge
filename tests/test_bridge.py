@@ -375,8 +375,8 @@ def test_runtime_gating_rules():
     # 排水：关机（PowerSwitchAll=0）才可用
     assert "PowerSwitchAll" in tmpl("homeassistant/switch/fotile_1032A_1149539722_autodrain/config")
     assert "in [0]" in tmpl("homeassistant/switch/fotile_1032A_1149539722_autodrain/config")
-    # 开始/继续：开机后（待机或暂停）
-    assert "in [1, 3]" in tmpl("homeassistant/button/fotile_1032A_1149539722_btn_start/config")
+    # 继续：仅暂停中
+    assert "in [3]" in tmpl("homeassistant/button/fotile_1032A_1149539722_btn_start/config")
     # 暂停：仅运行中
     assert "in [2]" in tmpl("homeassistant/button/fotile_1032A_1149539722_btn_pause/config")
     # 取消：运行或暂停
