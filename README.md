@@ -211,6 +211,20 @@ ssh root@192.168.31.2 'nft list table ip fotile_relay | grep counter'
 | `No file descriptors available` | 旧版本中转自环 | 升级到 0.4.2+ |
 | 中转日志 `Connection Refused` | 本地桥接账号错 | 检查 `ha_mqtt_user/password`（桥接认证用 `remote_username`） |
 | DNAT 不生效 | mihomo / fw4 抢先 | nft 规则优先级用 -101 |
+| 实体突然全部 `unavailable` | 0.11.0 的 availability 没被桥接到 HA；且重启后要等设备重连 | 升级到 **0.11.1+**（补上 `fotile/availability/#` 桥接 + 重启按上次活跃时间恢复在线） |
+
+## 在线状态（availability）
+
+HA 里每个实体都带 `availability_topic: fotile/availability/<设备ID>`，值 `online` / `offline`。
+
+- **online 的来源**：洗碗机通过中转建立 MQTT 连接（解析到 CONNECT 里的 device_id），或设备持续上报 `sync/`
+- **offline 的来源**：连接关闭，或 180 秒静默（设备 Wi-Fi 掉线时 TCP 可能没有 FIN）
+- **add-on 重启**：会读 `/data/availability.json` 里记录的最近活跃时间，
+  在 `availability_fresh`（默认 900 秒）之内就直接恢复 `online`，超过则发 `offline`，
+  避免每次重升级都出现长时间“实体不可用”
+
+> 注意：这是**被动**可见性。设备侧没有“你在线吗”这种主动查询协议；
+> 想主动探测只能走 App 侧 HTTP API（需要账号 token，本项目未实现）。
 
 ## 开发
 

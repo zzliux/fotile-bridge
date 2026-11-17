@@ -39,6 +39,7 @@ if bridge_host:
         'topic reply/# out 0',
         'topic homeassistant/# out 0',
         'topic fotile/state/# out 0',
+        'topic fotile/availability/# out 0',
         'topic fotile/+/+/set in 0',
         'topic fotile/+/+/program in 0',
         'topic fotile/+/+/param in 0',

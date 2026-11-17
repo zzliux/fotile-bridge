@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import time
 import json
 import logging
@@ -98,12 +99,15 @@ class MqttRelay:
         self._cloud_creds = None
         self._cloud_used = None
         self._cloud_lock = asyncio.Lock()
-        self._startup_deadline = time.monotonic() + 5
+        self._avail_cache_path = os.path.join(cfg.data_dir, "availability.json")
+        self._avail_cache: dict[str, float] = self._load_avail_cache()
+        self._cache_written_at = 0.0
 
     async def start(self) -> None:
         self.server = await asyncio.start_server(self._handle, "0.0.0.0", self.cfg.relay_port)
         self._loop = asyncio.get_running_loop()
         self._start_local_control()
+        asyncio.create_task(self._restore_availability())
         LOG.info("mqtt relay listening on :%s", self.cfg.relay_port)
 
     def _start_local_control(self) -> None:
@@ -124,9 +128,9 @@ class MqttRelay:
 
     def _on_local_control(self, client, userdata, msg):
         payload = msg.payload.decode("utf-8", "replace")
-        if msg.topic.startswith("fotile/availability/") and msg.retain:
-            if payload == "online" and time.monotonic() < self._startup_deadline:
-                self.local_publish(msg.topic, "offline", True)
+        # 可用性由 relay 自己维护（_restore_availability / mark_online），
+        # 这里只忽略，避免把 availability 当成控制报文转发回云端
+        if msg.topic.startswith("fotile/availability/"):
             return
         fut = asyncio.run_coroutine_threadsafe(self.inject(msg.topic, payload), self._loop)
         fut.add_done_callback(lambda f: f.exception() and LOG.warning("inject failed: %s", f.exception()))
@@ -242,11 +246,58 @@ class MqttRelay:
             LOG.info("relay connection closed")
 
     def _publish_avail(self, did: str, value: str) -> None:
+        self._touch_avail(did, value == "online")
         try:
             self.local_publish(f"fotile/availability/{did}", value, True)
             LOG.info("device %s -> %s", did, value)
         except Exception as exc:  # noqa: BLE001
             LOG.warning("availability publish failed: %s", exc)
+
+    def _load_avail_cache(self) -> dict[str, float]:
+        """读取上次记录的设备活跃时间（add-on 重启后用于恢复在线状态）。"""
+        try:
+            with open(self._avail_cache_path, encoding="utf-8") as f:
+                data = json.load(f)
+            return {str(k): float(v) for k, v in data.items()}
+        except (OSError, ValueError):
+            return {}
+
+    def _touch_avail(self, did: str, online: bool) -> None:
+        if not did:
+            return
+        is_new = did not in self._avail_cache
+        self._avail_cache[did] = time.time() if online else 0.0
+        # 在线心跳很频繁，落盘做节流；离线或首次出现立即落盘
+        now = time.monotonic()
+        if online and not is_new and now - self._cache_written_at < 30:
+            return
+        self._cache_written_at = now
+        try:
+            with open(self._avail_cache_path, "w", encoding="utf-8") as f:
+                json.dump(self._avail_cache, f)
+        except OSError as exc:  # noqa: BLE001
+            LOG.warning("availability cache write failed: %s", exc)
+
+    async def _restore_availability(self) -> None:
+        """add-on 重启后先按上次活跃时间恢复在线状态，避免设备重连前的空窗。"""
+        await asyncio.sleep(1.5)
+        self._restore_availability_now()
+
+    def _restore_availability_now(self) -> None:
+        fresh = float(self.cfg.availability_fresh)
+        now = time.time()
+        for did, ts in list(self._avail_cache.items()):
+            age = now - ts if ts else None
+            if age is not None and age <= fresh:
+                LOG.info("restore availability %s -> online (active %ds ago)", did, int(age))
+                self._publish_avail(did, "online")
+            else:
+                LOG.info(
+                    "restore availability %s -> offline (last active: %s)",
+                    did,
+                    f"{int(age)}s ago" if age is not None else "never",
+                )
+                self._publish_avail(did, "offline")
 
     def _parse_connect(self, pkt: bytes):
         """从设备的 CONNECT 里取出云端账号密码，供控制发布使用。"""
@@ -294,6 +345,8 @@ class MqttRelay:
                 text = payload.decode("utf-8")
             except UnicodeDecodeError:
                 return
+            # 设备在持续上报状态，说明它在线
+            self._touch_avail(topic.rsplit("/", 1)[-1], True)
             self.local_publish(topic, text, False)
 
     def _tap_cloud(self, pkt: bytes) -> None:

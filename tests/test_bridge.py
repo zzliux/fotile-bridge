@@ -226,3 +226,49 @@ def test_entities_have_availability_topic():
     with_avail = [c for c in cfgs if c.get("availability_topic")]
     assert with_avail
     assert all(c["availability_topic"] == "fotile/availability/1149539722" for c in with_avail)
+
+
+def test_availability_topic_is_bridged(tmp_path):
+    """run.sh 生成的 mosquitto 配置必须把 availability 桥接给 HA。"""
+    run = open(os.path.join(os.path.dirname(__file__), "..", "fotile_bridge", "run.sh")).read()
+    assert "topic fotile/availability/# out 0" in run
+
+
+def test_availability_cache_roundtrip(tmp_path):
+    from app.relay import MqttRelay
+
+    cfg = Config(data_dir=str(tmp_path))
+    relay = MqttRelay(cfg, lambda *a: None)
+    relay._touch_avail("1149539722", True)
+    again = MqttRelay(cfg, lambda *a: None)
+    assert again._avail_cache["1149539722"] > 0
+
+
+def test_availability_restore_publishes_online(tmp_path):
+    import time
+    from app.relay import MqttRelay
+
+    cfg = Config(data_dir=str(tmp_path), availability_fresh=900)
+    relay = MqttRelay(cfg, lambda *a: None)
+    sent = []
+    relay.local_publish = lambda topic, payload, retain: sent.append((topic, payload, retain))
+    relay._avail_cache = {"1149539722": time.time() - 60, "999": 0.0}
+    relay._restore_availability_now()
+    assert ("fotile/availability/1149539722", "online", True) in sent
+    assert ("fotile/availability/999", "offline", True) in sent
+
+
+def test_local_control_ignores_availability():
+    from app.relay import MqttRelay
+
+    relay = MqttRelay(Config(), lambda *a: None)
+    injected = []
+    relay.inject = lambda topic, payload: injected.append(topic)
+
+    class Msg:
+        topic = "fotile/availability/1149539722"
+        payload = b"online"
+        retain = True
+
+    relay._on_local_control(None, None, Msg())
+    assert injected == []

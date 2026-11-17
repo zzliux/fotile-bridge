@@ -30,6 +30,8 @@ class Config:
     relay_enabled: bool = False
     relay_port: int = 1886
     relay_upstream: str = "121.41.80.81"
+    # add-on 重启后，若设备最近活跃时间不超过该秒数，直接恢复为 online
+    availability_fresh: int = 900
     show_experimental: bool = False
 
 
@@ -60,6 +62,7 @@ def load_config(path: str = "/data/options.json") -> Config:
         relay_enabled=bool(raw.get("relay_enabled", False)),
         relay_port=int(raw.get("relay_port", 1886)),
         relay_upstream=str(raw.get("relay_upstream") or "121.41.80.81"),
+        availability_fresh=int(raw.get("availability_fresh", os.environ.get("FOTILE_AVAILABILITY_FRESH", 900))),
         show_experimental=bool(raw.get("show_experimental", False)),
     )
     return cfg
