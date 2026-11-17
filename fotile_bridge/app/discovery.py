@@ -178,7 +178,7 @@ class Discovery:
         self._publish_gsc(device, state_topic, product_id, device_id, gsc)
         if self.show_experimental and "appointment" in commands:
             self._publish_appointment(device, state_topic, product_id, device_id)
-        self._publish_controls(device, state_topic, product_id, device_id, controls)
+        self._publish_controls(device, state_topic, product_id, device_id, controls, basket_field)
         if self.show_experimental:
             self._publish_text_controls(device, state_topic, product_id, device_id, text_controls)
         self._cleanup_hidden(product_id, device_id)
@@ -317,7 +317,7 @@ class Discovery:
             )
         return f"{{{{ value_json.{field.key} }}}}"
 
-    def _publish_controls(self, device: dict, state_topic: str, product_id: str, device_id: str, controls: list) -> None:
+    def _publish_controls(self, device: dict, state_topic: str, product_id: str, device_id: str, controls: list, basket_field: str = "") -> None:
         for control in controls:
             kind = control.get("type", "number")
             field = control.get("field")
@@ -337,7 +337,12 @@ class Discovery:
                 base["icon"] = control["icon"]
             cond = control.get("available_when") or {}
             if cond.get("field"):
-                avail = self._availability(state_topic, (str(cond["field"]), cond.get("values") or [1]))
+                conds = [(str(cond["field"]), cond.get("values") or [1])]
+                if basket_field and cond.get("basket") == "absent":
+                    conds.append((basket_field, [0]))
+                elif basket_field and cond.get("basket") == "present":
+                    conds.append((basket_field, [1]))
+                avail = self._availability(state_topic, *conds)
                 if avail:
                     base["availability"] = avail
             if control.get("param"):

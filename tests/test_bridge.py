@@ -392,6 +392,9 @@ def test_store_total_time_gated_and_availability_not_conflicting():
     cfgs = {t: json.loads(p) for t, p, _ in bridge.client.sent if t.endswith("/config") and p}
     cfg = cfgs["homeassistant/number/fotile_1032A_1149539722_StoreTotalTime_number/config"]
     assert "in [1, 3]" in cfg["availability"][0]["value_template"]
+    # 拔掉果蔬篮后才允许设置保洁天数
+    assert "GSCDoorLockSta" in cfg["availability"][0]["value_template"]
+    assert "in [0]" in cfg["availability"][0]["value_template"]
     # 有 availability 列表时不能再出现 availability_topic（HA 会拒绝）
     assert "availability_topic" not in cfg
     assert cfg["availability"][-1]["topic"] == "fotile/availability/1149539722"
