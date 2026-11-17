@@ -285,6 +285,16 @@ HA 里每个实体都带 `availability_topic: fotile/availability/<设备ID>`，
 > 注意：这是**被动**可见性。设备侧没有“你在线吗”这种主动查询协议；
 > 想主动探测只能走 App 侧 HTTP API（需要账号 token，本项目未实现）。
 
+### 排查设备私有字段（debug 日志）
+
+0.11.4 起，`log_level: debug` 时会把以下内容打进日志：
+
+- `device publish <topic> <payload>`：设备发往云端的**所有** MQTT 报文（不只是 `sync/`）
+- `proxy body <method> <path> <body>`：设备发往云端的 HTTP 请求体
+- `proxy resp <path> <body>`：云端响应（小于 2KB 时）
+
+用途：设备有些能力（例如果蔬篮是否插入）不在 `sync/` 状态里，需要从这些私有报文/接口里找。
+
 ## 开发
 
 ```bash

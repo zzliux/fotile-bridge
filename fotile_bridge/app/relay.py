@@ -340,6 +340,8 @@ class MqttRelay:
             self._cloud_creds = creds
             LOG.info("captured device cloud credentials")
         topic, payload = self._parse_publish(pkt)
+        if topic and LOG.isEnabledFor(logging.DEBUG):
+            LOG.debug("device publish %s %s", topic, (payload or b"")[:300])
         if topic and topic.startswith("sync/") and payload:
             try:
                 text = payload.decode("utf-8")

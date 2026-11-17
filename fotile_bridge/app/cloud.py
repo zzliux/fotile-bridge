@@ -170,11 +170,16 @@ class CloudServer:
     async def proxy(self, request: web.Request) -> web.Response:
         if not self.cfg.learn_mode:
             return web.json_response({"error": {"msg": "not found", "code": 404}}, status=404)
-        upstream = await self.forward_raw(request, await request.read())
+        raw = await request.read()
+        if LOG.isEnabledFor(logging.DEBUG) and raw:
+            LOG.debug("proxy body %s %s %s", request.method, request.path_qs, raw[:400])
+        upstream = await self.forward_raw(request, raw)
         if upstream is None:
             return web.json_response({"error": {"msg": "upstream unreachable", "code": 502}}, status=502)
         status, headers, body = upstream
         LOG.debug("proxy %s %s -> %s", request.method, request.path_qs, status)
+        if LOG.isEnabledFor(logging.DEBUG) and body and len(body) < 2000:
+            LOG.debug("proxy resp %s %s", request.path_qs, body[:600])
         return web.Response(status=status, body=body, headers=headers)
 
     async def forward_raw(self, request: web.Request, body: bytes):
