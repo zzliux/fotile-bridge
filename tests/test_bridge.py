@@ -286,3 +286,55 @@ def test_local_control_ignores_availability():
 
     relay._on_local_control(None, None, Msg())
     assert injected == []
+
+
+def test_gsc_select_and_buttons_published():
+    bridge = make_bridge()
+    bridge._handle_sync("sync/1032A/1149539722", {"GSCWorkSta": 1, "GSCAutoDrain": 0})
+    topics = [t for t, _, _ in bridge.client.sent]
+    select_topic = "homeassistant/select/fotile_1032A_1149539722_gsc_program/config"
+    assert select_topic in topics
+    cfg = json.loads(next(p for t, p, _ in bridge.client.sent if t == select_topic))
+    assert cfg["options"] == [
+        "果蔬清洗-轻", "果蔬清洗-中", "果蔬清洗-强", "果蔬清洗-深层",
+        "生鲜清洗-轻", "生鲜清洗-中", "生鲜清洗-强", "虾蟹暂养",
+    ]
+    for key in ("gsc_start", "gsc_pause", "gsc_resume", "gsc_stop"):
+        assert f"homeassistant/button/fotile_1032A_1149539722_{key}/config" in topics
+    # POP 排水开关
+    assert "homeassistant/switch/fotile_1032A_1149539722_gscautodrain/config" in topics
+
+
+def test_gsc_start_uses_selected_program():
+    bridge = make_bridge()
+    bridge._handle_command("fotile/1032A/1149539722/set", {"gsc_program": "生鲜清洗-强"})
+    bridge._handle_command("fotile/1032A/1149539722/set", {"gsc_start": 1})
+    body = json.loads([p for t, p, _ in bridge.client.sent if t == "control/1032A/1149539722"][-1])
+    assert body == {"GSCWorkMode": 4, "GSCWorkSta": 1, "PowerSwitchAll": 1}
+
+
+def test_gsc_pause_resume_stop():
+    bridge = make_bridge()
+    sent = lambda: [json.loads(p) for t, p, _ in bridge.client.sent if t == "control/1032A/1149539722"][-1]
+    bridge._handle_command("fotile/1032A/1149539722/set", {"gsc_pause": 1})
+    assert sent() == {"GSCWorkSta": 2}
+    bridge._handle_command("fotile/1032A/1149539722/set", {"gsc_resume": 1})
+    assert sent() == {"GSCWorkSta": 1}
+    bridge._handle_command("fotile/1032A/1149539722/set", {"gsc_stop": 1})
+    assert sent() == {"GSCWorkSta": 0}
+
+
+def test_gsc_selection_syncs_from_device_mode():
+    bridge = make_bridge()
+    bridge._handle_sync("sync/1032A/1149539722", {"GSCWorkMode": 10})
+    assert bridge._gsc_programs["1149539722"] == "虾蟹暂养"
+    topics = [t for t, _, _ in bridge.client.sent]
+    assert "fotile/1032A/1149539722/gsc_program" in topics
+
+
+def test_gsc_fields_are_visible():
+    bridge = make_bridge()
+    bridge._handle_sync("sync/1032A/1149539722", {"GSCWorkSta": 2, "GSCClRemT": 18, "GSCWorkMode": 0, "GSCErrorNum": 0})
+    topics = [t for t, _, _ in bridge.client.sent]
+    for key in ("GSCWorkSta", "GSCClRemT", "GSCWorkMode", "GSCErrorNum"):
+        assert f"homeassistant/sensor/fotile_1032A_1149539722_{key}/config" in topics

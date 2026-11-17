@@ -65,6 +65,7 @@ class Discovery:
             programs=profile.programs,
             text_controls=profile.text_controls,
             switches=profile.switches,
+            gsc=profile.gsc,
         )
 
     def ensure_generic(self, product_id: str, device_id: str, state: Dict[str, object]) -> None:
@@ -81,6 +82,7 @@ class Discovery:
             programs={},
             text_controls=[],
             switches=[],
+            gsc={},
         )
 
     # ---- 内部 ----
@@ -98,6 +100,7 @@ class Discovery:
         programs: Dict[str, int],
         text_controls: List[dict],
         switches: List[dict],
+        gsc: Dict[str, dict],
     ) -> None:
         key = f"{product_id}:{device_id}"
         if key in self._done:
@@ -136,6 +139,7 @@ class Discovery:
             self._publish_power_switch(device, state_topic, product_id, device_id, power_key or "PowerSwitchAll")
         for spec in switches:
             self._publish_state_switch(device, state_topic, product_id, device_id, spec)
+        self._publish_gsc(device, product_id, device_id, gsc)
         if self.show_experimental and "appointment" in commands:
             self._publish_appointment(device, state_topic, product_id, device_id)
         self._publish_controls(device, state_topic, product_id, device_id, controls)
@@ -370,6 +374,50 @@ class Discovery:
             "device": device,
         }
         self.publish(f"homeassistant/number/{node}/config", json.dumps(self._finish(payload), ensure_ascii=False), True)
+
+    def _publish_gsc(self, device: dict, product_id: str, device_id: str, gsc: dict) -> None:
+        """果蔬篮（PopWash）子系统的程序选择与按钮。"""
+        programs = (gsc or {}).get("programs") or {}
+        if not programs:
+            return
+        base = f"fotile_{product_id}_{device_id}"
+        select_node = f"{base}_gsc_program"
+        select_payload = {
+            "name": gsc.get("name", "果蔬篮程序"),
+            "unique_id": select_node,
+            "object_id": select_node,
+            "command_topic": f"fotile/{product_id}/{device_id}/set",
+            "command_template": '{"gsc_program": "{{ value }}"}',
+            "state_topic": f"fotile/{product_id}/{device_id}/gsc_program",
+            "value_template": "{{ value }}",
+            "options": list(programs.keys()),
+            "icon": gsc.get("icon", "mdi:basket"),
+            "device": device,
+        }
+        self.publish(
+            f"homeassistant/select/{select_node}/config",
+            json.dumps(self._finish(select_payload), ensure_ascii=False),
+            True,
+        )
+        for btn in gsc.get("buttons") or []:
+            key = btn.get("key")
+            if not key:
+                continue
+            node = f"{base}_{key}"
+            payload = {
+                "name": btn.get("name", key),
+                "unique_id": node,
+                "object_id": node,
+                "command_topic": f"fotile/{product_id}/{device_id}/set",
+                "payload_press": json.dumps({key: 1}),
+                "icon": btn.get("icon", "mdi:gesture-tap-button"),
+                "device": device,
+            }
+            self.publish(
+                f"homeassistant/button/{node}/config",
+                json.dumps(self._finish(payload), ensure_ascii=False),
+                True,
+            )
 
     def _publish_state_switch(self, device: dict, state_topic: str, product_id: str, device_id: str, spec: dict) -> None:
         """把 0/1 字段做成开关：状态来自设备上报，命令走 set 主题。"""

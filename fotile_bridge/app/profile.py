@@ -52,6 +52,8 @@ class Profile:
     text_controls: List[dict] = field(default_factory=list)
     # 0/1 状态字段做成开关：[{key, name, icon, payload_on, payload_off}]
     switches: List[dict] = field(default_factory=list)
+    # 子系统（果蔬篮/PopWash）：programs 名字 -> {"GSCWorkMode": N}
+    gsc: Dict[str, dict] = field(default_factory=dict)
     # 设备上报里出现即视为 binary 的键（0/1）
     power_key: str = "PowerSwitchAll"
     model: str = ""
@@ -67,6 +69,7 @@ class Profile:
             controls=data.get("controls") or [],
             text_controls=data.get("text_controls") or [],
             switches=data.get("switches") or [],
+            gsc=data.get("gsc") or {},
             programs={str(k): (v if isinstance(v, dict) else {"WorkMode": int(v)})
                       for k, v in (data.get("programs") or {}).items()},
             power_key=data.get("powerKey", "PowerSwitchAll"),

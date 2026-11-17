@@ -130,35 +130,58 @@
       "enabled": false
     },
     "GSCWorkSta": {
-      "name": "蒸汽清洁状态",
-      "icon": "mdi:weather-cloudy",
-      "enabled": false
+      "name": "果蔬篮状态",
+      "icon": "mdi:basket",
+      "enabled": true,
+      "values": {
+        "0": "已关机",
+        "1": "待机",
+        "2": "运行中",
+        "3": "暂停"
+      }
     },
     "GSCRunSta": {
-      "name": "蒸汽清洁运行",
+      "name": "果蔬篮运行状态",
       "icon": "mdi:play-circle-outline",
-      "enabled": false
+      "enabled": false,
+      "values": {
+        "0": "停止",
+        "1": "运行",
+        "2": "暂停"
+      }
     },
     "GSCWorkMode": {
-      "name": "蒸汽清洁模式",
-      "icon": "mdi:weather-cloudy",
-      "enabled": false
+      "name": "果蔬篮当前程序",
+      "icon": "mdi:basket",
+      "enabled": true,
+      "values": {
+        "0": "果蔬清洗-中",
+        "1": "果蔬清洗-强",
+        "2": "果蔬清洗-轻",
+        "3": "生鲜清洗-中",
+        "4": "生鲜清洗-强",
+        "5": "生鲜清洗-轻",
+        "10": "虾蟹暂养",
+        "12": "果蔬清洗-深层"
+      }
     },
     "GSCSetWorkT": {
-      "name": "蒸汽清洁设定时间",
+      "name": "果蔬篮设定时长",
       "unit": "min",
       "device_class": "duration",
       "icon": "mdi:clock-digital",
       "enabled": false,
-      "note": "小时*256+分钟，默认18=18分钟"
+      "note": "小时*256+分钟，默认18=18分钟",
+      "decode": "hhmm"
     },
     "GSCClRemT": {
-      "name": "蒸汽清洁剩余时间",
+      "name": "果蔬篮剩余时间",
       "unit": "min",
       "device_class": "duration",
       "icon": "mdi:timer-sand",
-      "enabled": false,
-      "note": "小时*256+分钟"
+      "enabled": true,
+      "note": "小时*256+分钟",
+      "decode": "hhmm"
     },
     "GSCDoorLockSta": {
       "name": "蒸汽清洁门锁",
@@ -173,9 +196,9 @@
       "enabled": false
     },
     "GSCErrorNum": {
-      "name": "蒸汽清洁故障码",
+      "name": "果蔬篮故障",
       "icon": "mdi:alert-circle-outline",
-      "enabled": false
+      "enabled": true
     },
     "ValleyAppoint": {
       "name": "峰谷预约",
@@ -383,6 +406,69 @@
       "payload_off": {
         "AutoDrain": 0
       }
+    },
+    {
+      "key": "GSCAutoDrain",
+      "name": "果蔬排水（POP）",
+      "icon": "mdi:water-pump-outline",
+      "payload_on": {
+        "GSCAutoDrain": 1
+      },
+      "payload_off": {
+        "GSCAutoDrain": 0
+      }
     }
-  ]
+  ],
+  "gsc": {
+    "name": "果蔬篮程序",
+    "icon": "mdi:basket",
+    "programs": {
+      "果蔬清洗-轻": {
+        "GSCWorkMode": 2
+      },
+      "果蔬清洗-中": {
+        "GSCWorkMode": 0
+      },
+      "果蔬清洗-强": {
+        "GSCWorkMode": 1
+      },
+      "果蔬清洗-深层": {
+        "GSCWorkMode": 12
+      },
+      "生鲜清洗-轻": {
+        "GSCWorkMode": 5
+      },
+      "生鲜清洗-中": {
+        "GSCWorkMode": 3
+      },
+      "生鲜清洗-强": {
+        "GSCWorkMode": 4
+      },
+      "虾蟹暂养": {
+        "GSCWorkMode": 10
+      }
+    },
+    "buttons": [
+      {
+        "key": "gsc_start",
+        "name": "启动所选",
+        "icon": "mdi:play"
+      },
+      {
+        "key": "gsc_pause",
+        "name": "暂停",
+        "icon": "mdi:pause"
+      },
+      {
+        "key": "gsc_resume",
+        "name": "继续",
+        "icon": "mdi:play-pause"
+      },
+      {
+        "key": "gsc_stop",
+        "name": "取消",
+        "icon": "mdi:stop"
+      }
+    ]
+  }
 }

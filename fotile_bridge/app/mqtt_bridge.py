@@ -26,6 +26,7 @@ class MqttBridge:
         self.client = None
         self._state = {}  # (product, device) -> 合并后的状态
         self._programs = {}  # device_id -> 选中的程序名
+        self._gsc_programs = {}  # device_id -> 选中的果蔬篮程序名
         self._params = {}  # device_id -> {字段: 值}，启动时带上
         self.mirror = None
 
@@ -124,7 +125,23 @@ class MqttBridge:
             LOG.info("no profile for product %s, using generic discovery", product_id)
             self.discovery.ensure_generic(product_id, device_id, merged)
             return
+        self._sync_gsc_selection(profile, product_id, device_id, merged)
         self.discovery.ensure(profile, device_id, merged)
+
+    def _sync_gsc_selection(self, profile, product_id: str, device_id: str, state: dict) -> None:
+        """设备自己启动果蔬篮程序时，把选择器同步成对应名字。"""
+        gsc = profile.gsc or {}
+        programs = gsc.get("programs") or {}
+        mode = state.get("GSCWorkMode")
+        if not programs or mode is None:
+            return
+        for name, spec in programs.items():
+            spec_mode = spec.get("GSCWorkMode") if isinstance(spec, dict) else spec
+            if spec_mode is not None and int(spec_mode) == int(mode):
+                if self._gsc_programs.get(device_id) != name:
+                    self._gsc_programs[device_id] = name
+                    self.publish(f"fotile/{product_id}/{device_id}/gsc_program", name, True)
+                return
 
     def _handle_retained_state(self, topic: str, payload: dict) -> None:
         parts = topic.split("/")
@@ -157,6 +174,39 @@ class MqttBridge:
         if "raw" in payload and isinstance(payload["raw"], dict):
             self.publish(control_topic, json.dumps(payload["raw"]), False)
             LOG.info("raw command -> %s %s", control_topic, payload["raw"])
+            return
+
+        if "gsc_program" in payload:
+            name = str(payload.get("gsc_program") or "")
+            self._gsc_programs[device_id] = name
+            self.publish(f"fotile/{product_id}/{device_id}/gsc_program", name, True)
+            LOG.info("selected gsc program %s for %s", name, device_id)
+            return
+
+        if profile is not None and any(k.startswith("gsc_") for k in payload):
+            gsc = profile.gsc or {}
+            programs = {str(k): v for k, v in (gsc.get("programs") or {}).items()}
+            if "gsc_start" in payload:
+                name = self._gsc_programs.get(device_id, "")
+                spec = programs.get(name)
+                if spec is None:
+                    fallback = next(iter(programs), "")
+                    if fallback:
+                        LOG.warning("no gsc program selected for %s, fallback to %s", device_id, fallback)
+                        name, spec = fallback, programs[fallback]
+                if spec is None:
+                    LOG.warning("unknown gsc program %s for %s", name, device_id)
+                    return
+                mode = spec.get("GSCWorkMode") if isinstance(spec, dict) else int(spec)
+                body = {"GSCWorkMode": int(mode), "GSCWorkSta": 1, "PowerSwitchAll": 1}
+                self.publish(control_topic, json.dumps(body), False)
+                LOG.info("start gsc program %s (GSCWorkMode=%s)", name, body["GSCWorkMode"])
+                return
+            for key, value in (("gsc_pause", 2), ("gsc_resume", 1), ("gsc_stop", 0)):
+                if key in payload:
+                    self.publish(control_topic, json.dumps({"GSCWorkSta": value}), False)
+                    LOG.info("gsc %s -> GSCWorkSta=%s", key, value)
+                    return
             return
 
         if profile is not None and "start_program" in payload:
