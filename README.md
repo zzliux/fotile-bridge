@@ -182,8 +182,8 @@ ssh root@192.168.31.2 'nft list table ip fotile_relay | grep counter'
 
 | 类别 | 实体 |
 |---|---|
-| 控制 | 电源、碗碟程序（13 种）、启动碗碟清洗程序、继续、暂停、取消、排水（开关） |
-| 果蔬篮（PopWash） | 果蔬生鲜程序（8 种）、启动果蔬生鲜清洗程序、暂停、继续、取消、果蔬排水（POP） |
+| 控制 | 电源、碗碟程序（13 种）、启动碗碟程序、碗碟继续 / 碗碟暂停 / 碗碟取消、排水（开关） |
+| 果蔬篮（PopWash） | 果蔬生鲜程序（8 种）、启动果蔬生鲜程序、果蔬生鲜继续 / 暂停 / 取消、果蔬排水（POP） |
 | 果蔬篮监控 | 果蔬篮在位、状态、剩余时间、当前程序、故障码 |
 | 监控 | 剩余时间、工作状态（中文）、运行状态、门锁、故障码、提醒、保洁存储(天) |
 | 默认隐藏 | 预约时间、工作模式/工作状态原始值（`show_experimental: true` 才显示） |
@@ -242,7 +242,7 @@ ssh root@192.168.31.2 'nft list table ip fotile_relay | grep counter'
 
 | 动作 | 报文 |
 | --- | --- |
-| 启动果蔬生鲜清洗程序 | `{"GSCWorkMode":N,"GSCWorkSta":1,"PowerSwitchAll":1}` |
+| 启动果蔬生鲜程序 | `{"GSCWorkMode":N,"GSCWorkSta":1,"PowerSwitchAll":1}` |
 | 暂停 | `{"GSCWorkSta":2}` |
 | 继续 | `{"GSCWorkSta":1}` |
 | 取消 | `{"GSCWorkSta":0}` |
@@ -271,7 +271,7 @@ HA 里对应 `binary_sensor.*_GSCDoorLockSta`（名称「果蔬篮」）。
 有了这个标志，HA 侧做了两处联动，行为和 App 一致：
 
 - **果蔬排水（POP）开关**：只有篮在位（=1）时才可用，拔下后变 `unavailable`
-- **碗碟程序选择** + **启动碗碟清洗程序**按钮：篮在位时变 `unavailable`，插入篮后无法再启动碗碟程序
+- **碗碟程序选择** + **启动碗碟程序**按钮：篮在位时变 `unavailable`，插入篮后无法再启动碗碟程序
 
 > 其余碗碟按钮（开始/继续、暂停、取消）不做限制，因为篮在位时本来也没有碗碟程序在跑。
 
@@ -283,20 +283,20 @@ HA 里对应 `binary_sensor.*_GSCDoorLockSta`（名称「果蔬篮」）。
 | --- | --- |
 | 排水（普通） | `PowerSwitchAll = 0`（关机） |
 | 果蔬排水（POP） | `GSCDoorLockSta = 1`（果蔬篮在位） |
-| 碗碟程序选择 / 启动碗碟清洗程序 / 预约时间 | `WorkState ∈ {1,3}`（开机且未运行）且 `GSCDoorLockSta = 0` |
+| 碗碟程序选择 / 启动碗碟程序 / 预约时间 | `WorkState ∈ {1,3}`（开机且未运行）且 `GSCDoorLockSta = 0` |
 | 保洁存储(天) | `WorkState ∈ {1,3}`（开机且未运行） |
-| 继续（碗碟） | `WorkState = 3`（暂停中） |
-| 暂停（碗碟） | `WorkState = 2`（运行中） |
-| 取消（碗碟） | `WorkState ∈ {2,3}`（运行中或暂停） |
-| 果蔬生鲜程序 / 启动果蔬生鲜清洗程序 | `GSCWorkSta ∈ {1,3}` 且 `GSCDoorLockSta = 1` |
-| 果蔬篮暂停（GSC） | `GSCWorkSta = 2` |
-| 果蔬篮继续（GSC） | `GSCWorkSta = 3` |
-| 果蔬篮取消（GSC） | `GSCWorkSta ∈ {2,3}` |
+| 碗碟继续 | `WorkState = 3`（暂停中） |
+| 碗碟暂停 | `WorkState = 2`（运行中） |
+| 碗碟取消 | `WorkState ∈ {2,3}`（运行中或暂停） |
+| 果蔬生鲜程序 / 启动果蔬生鲜程序 | `GSCWorkSta ∈ {1,3}` 且 `GSCDoorLockSta = 1` |
+| 果蔬生鲜暂停 | `GSCWorkSta = 2` |
+| 果蔬生鲜继续 | `GSCWorkSta = 3` |
+| 果蔬生鲜取消 | `GSCWorkSta ∈ {2,3}` |
 
 要点：
 
 - **「启动」和「继续」不是一回事**：
-  - 启动碗碟清洗程序 / 启动果蔬生鲜清洗程序 → 用选中的程序**开新任务**（发完整参数）
+  - 启动碗碟程序 / 启动果蔬生鲜程序 → 用选中的程序**开新任务**（发完整参数）
   - 继续 → 只发 `{"WorkState":1}` / `{"GSCWorkSta":1}`，把**暂停中的任务**恢复运行
   - 所以「继续」只在暂停（`WorkState = 3`）时可用
 - **程序设置（程序选择、启动程序、预约、保洁存储）只在开机且未运行时可改**：

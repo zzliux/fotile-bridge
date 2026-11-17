@@ -268,7 +268,7 @@
     },
     "start": {
       "button": {
-        "name": "继续"
+        "name": "碗碟继续"
       },
       "sequence": [
         {
@@ -278,7 +278,7 @@
     },
     "pause": {
       "button": {
-        "name": "暂停"
+        "name": "碗碟暂停"
       },
       "sequence": [
         {
@@ -288,7 +288,7 @@
     },
     "stop": {
       "button": {
-        "name": "取消"
+        "name": "碗碟取消"
       },
       "sequence": [
         {
@@ -298,7 +298,7 @@
     },
     "start_program": {
       "button": {
-        "name": "启动碗碟清洗程序"
+        "name": "启动碗碟程序"
       },
       "program": true
     }
@@ -467,22 +467,22 @@
     "buttons": [
       {
         "key": "gsc_start",
-        "name": "启动果蔬生鲜清洗程序",
+        "name": "启动果蔬生鲜程序",
         "icon": "mdi:play"
       },
       {
         "key": "gsc_pause",
-        "name": "暂停",
+        "name": "果蔬生鲜暂停",
         "icon": "mdi:pause"
       },
       {
         "key": "gsc_resume",
-        "name": "继续",
+        "name": "果蔬生鲜继续",
         "icon": "mdi:play-pause"
       },
       {
         "key": "gsc_stop",
-        "name": "取消",
+        "name": "果蔬生鲜取消",
         "icon": "mdi:stop"
       }
     ]
