@@ -353,10 +353,34 @@ def test_basket_field_exposed_and_gates_controls():
     pop = cfgs["homeassistant/switch/fotile_1032A_1149539722_gscautodrain/config"]
     assert pop["availability"][0]["payload_available"] == "yes"
     assert "GSCDoorLockSta" in pop["availability"][0]["value_template"]
-    assert "== 1" in pop["availability"][0]["value_template"]
+    assert "in [1]" in pop["availability"][0]["value_template"]
 
-    # 碗碟程序选择与“启动所选程序”：篮在位时不可用
+    # 碗碟程序选择与“启动所选程序”：运行中或篮在位时不可用
     select = cfgs["homeassistant/select/fotile_1032A_1149539722_program/config"]
-    assert "== 0" in select["availability"][0]["value_template"]
+    assert "WorkState" in select["availability"][0]["value_template"]
+    assert "in [0, 1]" in select["availability"][0]["value_template"]
+    assert "GSCDoorLockSta" in select["availability"][0]["value_template"]
     start = cfgs["homeassistant/button/fotile_1032A_1149539722_btn_start_program/config"]
-    assert "== 0" in start["availability"][0]["value_template"]
+    assert "in [0, 1]" in start["availability"][0]["value_template"]
+
+
+def test_runtime_gating_rules():
+    bridge = make_bridge()
+    bridge._handle_sync("sync/1032A/1149539722", {"WorkState": 0, "PowerSwitchAll": 0, "GSCWorkSta": 0})
+    cfgs = {t: json.loads(p) for t, p, _ in bridge.client.sent if t.endswith("/config") and p}
+
+    def tmpl(topic):
+        return cfgs[topic]["availability"][0]["value_template"]
+
+    # 排水：关机（PowerSwitchAll=0）才可用
+    assert "PowerSwitchAll" in tmpl("homeassistant/switch/fotile_1032A_1149539722_autodrain/config")
+    assert "in [0]" in tmpl("homeassistant/switch/fotile_1032A_1149539722_autodrain/config")
+    # 开始/继续：关机、待机、暂停
+    assert "in [0, 1, 3]" in tmpl("homeassistant/button/fotile_1032A_1149539722_btn_start/config")
+    # 暂停：仅运行中
+    assert "in [2]" in tmpl("homeassistant/button/fotile_1032A_1149539722_btn_pause/config")
+    # 取消：运行或暂停
+    assert "in [2, 3]" in tmpl("homeassistant/button/fotile_1032A_1149539722_btn_stop/config")
+    # 果蔬篮：暂停仅运行中，取消运行/暂停
+    assert "in [2]" in tmpl("homeassistant/button/fotile_1032A_1149539722_gsc_pause/config")
+    assert "in [2, 3]" in tmpl("homeassistant/button/fotile_1032A_1149539722_gsc_stop/config")

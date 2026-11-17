@@ -406,6 +406,10 @@
       },
       "payload_off": {
         "AutoDrain": 0
+      },
+      "available_when": {
+        "field": "PowerSwitchAll",
+        "value": 0
       }
     },
     {

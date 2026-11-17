@@ -90,14 +90,24 @@ class Discovery:
     # ---- 内部 ----
 
     @staticmethod
-    def _field_availability(state_topic: str, field: str, expected: int) -> list:
-        """按状态里的某个 0/1 字段决定实体可用性。"""
+    def _availability(state_topic: str, *conds) -> Optional[list]:
+        """按状态字段的取值决定实体可用性。conds: (field, allowed_values) 列表。"""
+        parts = []
+        for cond in conds:
+            if not cond:
+                continue
+            field, values = cond
+            if not field:
+                continue
+            parts.append(
+                "(value_json.%s | default(-1) | int(-1)) in %s"
+                % (field, list(values) if isinstance(values, (list, tuple, set)) else [values])
+            )
+        if not parts:
+            return None
         return [{
             "topic": state_topic,
-            "value_template": (
-                "{{ 'yes' if (value_json.%s | default(-1) | int(-1)) == %d else 'no' }}"
-                % (field, expected)
-            ),
+            "value_template": "{{ 'yes' if %s else 'no' }}" % " and ".join(parts),
             "payload_available": "yes",
             "payload_not_available": "no",
         }]
@@ -155,7 +165,7 @@ class Discovery:
             self._publish_power_switch(device, state_topic, product_id, device_id, power_key or "PowerSwitchAll")
         for spec in switches:
             self._publish_state_switch(device, state_topic, product_id, device_id, spec)
-        self._publish_gsc(device, product_id, device_id, gsc)
+        self._publish_gsc(device, state_topic, product_id, device_id, gsc)
         if self.show_experimental and "appointment" in commands:
             self._publish_appointment(device, state_topic, product_id, device_id)
         self._publish_controls(device, state_topic, product_id, device_id, controls)
@@ -177,9 +187,14 @@ class Discovery:
                 "icon": "mdi:dishwasher",
                 "device": device,
             }
-            if basket_field:
-                # 插入果蔬篮时设备不允许启动碗碟程序
-                payload["availability"] = self._field_availability(state_topic, basket_field, 0)
+            # 运行中不允许改程序设置；插入果蔬篮时设备也不允许启动碗碟程序
+            avail = self._availability(
+                state_topic,
+                ("WorkState", [0, 1]),
+                (basket_field, [0]) if basket_field else None,
+            )
+            if avail:
+                payload["availability"] = avail
             self.publish(f"homeassistant/select/{node}/config", json.dumps(self._finish(payload), ensure_ascii=False), True)
 
         for name, spec in commands.items():
@@ -196,8 +211,22 @@ class Discovery:
                 "icon": btn.get("icon", "mdi:gesture-tap-button"),
                 "device": device,
             }
-            if basket_field and name == "start_program":
-                payload["availability"] = self._field_availability(state_topic, basket_field, 0)
+            rules = {
+                # 启动程序：待机/关机时可设置；运行或暂停时不行
+                "start_program": [("WorkState", [0, 1]), (basket_field, [0]) if basket_field else None],
+                # 开始/继续：关机、待机、暂停时可用
+                "start": [("WorkState", [0, 1, 3])],
+                # 暂停：仅运行中
+                "pause": [("WorkState", [2])],
+                # 取消：运行或暂停中
+                "stop": [("WorkState", [2, 3])],
+                # 排水：仅关机状态可用
+                "drain": [("PowerSwitchAll", [0])],
+            }
+            if name in rules:
+                avail = self._availability(state_topic, *rules[name])
+                if avail:
+                    payload["availability"] = avail
             self.publish(f"homeassistant/button/{node}/config", json.dumps(self._finish(payload), ensure_ascii=False), True)
 
         self._done.add(key)
@@ -394,9 +423,12 @@ class Discovery:
             "enabled_by_default": False,
             "device": device,
         }
+        avail = self._availability(state_topic, ("WorkState", [0, 1]))
+        if avail:
+            payload["availability"] = avail
         self.publish(f"homeassistant/number/{node}/config", json.dumps(self._finish(payload), ensure_ascii=False), True)
 
-    def _publish_gsc(self, device: dict, product_id: str, device_id: str, gsc: dict) -> None:
+    def _publish_gsc(self, device: dict, state_topic: str, product_id: str, device_id: str, gsc: dict) -> None:
         """果蔬篮（PopWash）子系统的程序选择与按钮。"""
         programs = (gsc or {}).get("programs") or {}
         if not programs:
@@ -415,11 +447,24 @@ class Discovery:
             "icon": gsc.get("icon", "mdi:basket"),
             "device": device,
         }
+        basket = gsc.get("basket_field") or "GSCDoorLockSta"
+        avail = self._availability(
+            state_topic,
+            ("GSCWorkSta", [0, 1]),
+            (basket, [1]),
+        )
+        if avail:
+            select_payload["availability"] = avail
         self.publish(
             f"homeassistant/select/{select_node}/config",
             json.dumps(self._finish(select_payload), ensure_ascii=False),
             True,
         )
+        gsc_rules = {
+            "gsc_pause": [("GSCWorkSta", [2])],
+            "gsc_resume": [("GSCWorkSta", [3])],
+            "gsc_stop": [("GSCWorkSta", [2, 3])],
+        }
         for btn in gsc.get("buttons") or []:
             key = btn.get("key")
             if not key:
@@ -434,6 +479,16 @@ class Discovery:
                 "icon": btn.get("icon", "mdi:gesture-tap-button"),
                 "device": device,
             }
+            if key == "gsc_start":
+                avail = self._availability(
+                    state_topic,
+                    ("GSCWorkSta", [0, 1]),
+                    (basket, [1]),
+                )
+            else:
+                avail = self._availability(state_topic, *gsc_rules.get(key, []))
+            if avail:
+                payload["availability"] = avail
             self.publish(
                 f"homeassistant/button/{node}/config",
                 json.dumps(self._finish(payload), ensure_ascii=False),
@@ -463,9 +518,9 @@ class Discovery:
         }
         cond = spec.get("available_when") or {}
         if cond.get("field") and state_topic:
-            payload["availability"] = self._field_availability(
-                state_topic, str(cond["field"]), int(cond.get("value", 1))
-            )
+            avail = self._availability(state_topic, (str(cond["field"]), [int(cond.get("value", 1))]))
+            if avail:
+                payload["availability"] = avail
         self.publish(
             f"homeassistant/switch/{node}/config",
             json.dumps(self._finish(payload), ensure_ascii=False),
