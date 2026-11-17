@@ -182,7 +182,7 @@ ssh root@192.168.31.2 'nft list table ip fotile_relay | grep counter'
 
 | 类别 | 实体 |
 |---|---|
-| 控制 | 电源、碗碟程序（13 种）、启动所选程序、开始/继续、暂停、取消、排水 |
+| 控制 | 电源、碗碟程序（13 种）、启动所选程序、开始/继续、暂停、取消、排水（开关） |
 | 监控 | 剩余时间、工作状态（中文）、运行状态、门锁、故障码、提醒、保洁存储(天) |
 | 默认隐藏 | 预约时间、工作模式/工作状态原始值（`show_experimental: true` 才显示） |
 
@@ -195,11 +195,28 @@ ssh root@192.168.31.2 'nft list table ip fotile_relay | grep counter'
 | 暂停 | `{"WorkState":2}` |
 | 取消 | `{"WorkState":0}` |
 | 启动程序 | `{"WorkMode":N,"WorkState":1,"AddFunL":X,"StoreTotalTime":D,"PowerSwitchAll":1}` |
-| 排水 | 先 `{"PowerSwitchAll":0,"GSCPowerSwitch":0}`，2 秒后 `{"AutoDrain":1}` |
+| 排水 | `{"AutoDrain":1}`；设备排水期间上报 `AutoDrain=1`，结束后自动变回 `0`（实测约 37 秒） |
 
 程序映射：日常洗 0、超快洗 1、超净洗 2、晶亮洗 3、自清洁 4、节能洗 5、智能洗 6、
 预冲洗 128、母婴洗 129、静音洗 130、蒸汽消杀 132、独立烘干 133、餐前暖碟 136。
 谷电洗（135）走预约流程，暂未实现。
+
+### 排水开关
+
+排水做成了和电源一样的开关（`switch.*_autodrain`）：
+
+- **开** → 发 `{"AutoDrain":1}`
+- **关** → 发 `{"AutoDrain":0}`（设备不保证响应，可能忽略）
+- **状态** → 直接读设备上报的 `AutoDrain`，所以排水结束后开关会**自动关闭**，不需要额外定时器
+
+实测（2026-11-17）：
+
+```
+11:03:01  AutoDrain=1   ← 开始排水
+11:03:38  AutoDrain=0   ← 排完，开关自动关
+```
+
+排水期间 `WorkState` 仍是 0（已关机），所以只能靠 `AutoDrain` 判断，不能用工作状态。
 
 ## 排错
 

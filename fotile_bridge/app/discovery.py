@@ -64,6 +64,7 @@ class Discovery:
             controls=profile.controls,
             programs=profile.programs,
             text_controls=profile.text_controls,
+            switches=profile.switches,
         )
 
     def ensure_generic(self, product_id: str, device_id: str, state: Dict[str, object]) -> None:
@@ -79,6 +80,7 @@ class Discovery:
             controls=[],
             programs={},
             text_controls=[],
+            switches=[],
         )
 
     # ---- 内部 ----
@@ -95,6 +97,7 @@ class Discovery:
         controls: List[dict],
         programs: Dict[str, int],
         text_controls: List[dict],
+        switches: List[dict],
     ) -> None:
         key = f"{product_id}:{device_id}"
         if key in self._done:
@@ -131,6 +134,8 @@ class Discovery:
 
         if "power" in commands:
             self._publish_power_switch(device, state_topic, product_id, device_id, power_key or "PowerSwitchAll")
+        for spec in switches:
+            self._publish_state_switch(device, state_topic, product_id, device_id, spec)
         if self.show_experimental and "appointment" in commands:
             self._publish_appointment(device, state_topic, product_id, device_id)
         self._publish_controls(device, state_topic, product_id, device_id, controls)
@@ -366,19 +371,32 @@ class Discovery:
         }
         self.publish(f"homeassistant/number/{node}/config", json.dumps(self._finish(payload), ensure_ascii=False), True)
 
-    def _publish_drain_button(self, device: dict, product_id: str, device_id: str) -> None:
-        node = f"fotile_{product_id}_{device_id}_drain"
+    def _publish_state_switch(self, device: dict, state_topic: str, product_id: str, device_id: str, spec: dict) -> None:
+        """把 0/1 字段做成开关：状态来自设备上报，命令走 set 主题。"""
+        key = spec.get("key")
+        if not key:
+            return
+        node = f"fotile_{product_id}_{device_id}_{str(key).lower()}"
         payload = {
-            "name": "排水（实验）",
+            "name": spec.get("name", key),
             "unique_id": node,
             "object_id": node,
             "command_topic": f"fotile/{product_id}/{device_id}/set",
-            "payload_press": '{"drain": 1}',
-            "icon": "mdi:water-pump",
-            "enabled_by_default": False,
+            "payload_on": json.dumps(spec.get("payload_on", {key: 1})),
+            "payload_off": json.dumps(spec.get("payload_off", {key: 0})),
+            "state_topic": state_topic,
+            "value_template": f"{{{{ value_json.{key} }}}}",
+            "state_on": "1",
+            "state_off": "0",
+            "icon": spec.get("icon", "mdi:toggle-switch"),
+            "enabled_by_default": bool(spec.get("enabled", True)),
             "device": device,
         }
-        self.publish(f"homeassistant/button/{node}/config", json.dumps(self._finish(payload), ensure_ascii=False), True)
+        self.publish(
+            f"homeassistant/switch/{node}/config",
+            json.dumps(self._finish(payload), ensure_ascii=False),
+            True,
+        )
 
     def _publish_power_switch(self, device: dict, state_topic: str, product_id: str, device_id: str, power_key: str) -> None:
         node = f"fotile_{product_id}_{device_id}_power"

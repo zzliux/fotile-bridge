@@ -371,5 +371,18 @@
     "workstate": "0=关机 1=待机 2=运行 3=未确认 4=完成 6=预约等待",
     "stremtime": "恒为2040，不是倒计时，语义未确认，默认隐藏",
     "decode_kinds": "profile 里 decode 取值：hhmm=时长(小时*256+分)；hhmm_time=时间点；hhmm_day=带天偏移的预约"
-  }
+  },
+  "switches": [
+    {
+      "key": "AutoDrain",
+      "name": "排水",
+      "icon": "mdi:water-pump",
+      "payload_on": {
+        "drain": 1
+      },
+      "payload_off": {
+        "AutoDrain": 0
+      }
+    }
+  ]
 }

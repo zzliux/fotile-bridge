@@ -91,12 +91,26 @@ def test_disabled_field_has_enabled_by_default_false():
     assert payload["enabled_by_default"] is False
 
 
-def test_number_and_button_discovery():
+def test_number_and_drain_switch_discovery():
     bridge = make_bridge()
-    bridge._handle_sync("sync/1032A/1149539722", {"SetAppointmentTime": 30})
+    bridge._handle_sync("sync/1032A/1149539722", {"SetAppointmentTime": 30, "AutoDrain": 0})
     topics = [t for t, _, _ in bridge.client.sent]
     assert any(t.startswith("homeassistant/number/") and t.endswith("_appointment/config") for t in topics)
-    assert any(t.startswith("homeassistant/button/") and t.endswith("_drain/config") for t in topics)
+    assert any(t.startswith("homeassistant/switch/") and t.endswith("_autodrain/config") for t in topics)
+
+
+def test_drain_switch_reflects_autodrain_state():
+    bridge = make_bridge()
+    bridge._handle_sync("sync/1032A/1149539722", {"AutoDrain": 1})
+    cfg = json.loads(next(
+        p for t, p, _ in bridge.client.sent
+        if t.endswith("_autodrain/config") and p
+    ))
+    assert cfg["name"] == "排水"
+    assert cfg["state_on"] == "1" and cfg["state_off"] == "0"
+    assert cfg["value_template"] == "{{ value_json.AutoDrain }}"
+    assert json.loads(cfg["payload_on"]) == {"drain": 1}
+    assert json.loads(cfg["payload_off"]) == {"AutoDrain": 0}
 
 
 def test_appointment_command():
